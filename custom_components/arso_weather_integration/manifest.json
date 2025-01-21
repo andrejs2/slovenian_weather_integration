@@ -1,0 +1,12 @@
+{
+  "domain": "slovenian_weather_integration",
+  "name": "ARSO Weather",
+  "version": "1.3.0",
+  "documentation": "https://github.com/andrejs2/arso-vremenska-integracija/",
+  "issue_tracker": "https://github.com/andrejs2/arso-vremenska-integracija/issues/",
+  "dependencies": [],
+  "codeowners": ["@andrejs2"],
+  "requirements": [],
+  "iot_class": "cloud_polling",
+  "config_flow": true
+}

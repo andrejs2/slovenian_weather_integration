@@ -1,3 +1,8 @@
+https://hacs.xyz/docs/publish/include/#check-brands
+https://code.visualstudio.com/docs/devcontainers/tutorial
+https://www.hacs.xyz/docs/contribute/devcontainer/
+
+
 # Home Assistant Custom Component - ARSO Weather (BETA)
 ## Vremenska integracija za Home Assistant
 

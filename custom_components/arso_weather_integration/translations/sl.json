@@ -1,0 +1,13 @@
+{
+    "config": {
+      "step": {
+        "user": {
+          "data": {
+            "location": "Izberite lokacijo"
+          },
+          "title": "Nastavitve za ARSO Vreme"
+        }
+      }
+    }
+  }
+  
