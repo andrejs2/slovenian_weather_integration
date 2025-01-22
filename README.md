@@ -10,7 +10,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/andrejs2/slovenian_weather_integration?style=for-the-badge)](https://github.com/andrejs2/slovenian_weather_integration/releases/tag/v1.0.0)
 
 
-
+![Icon Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/icon.png?raw=true)
 # 🌦️ 🇸🇮 Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
 ## 🌍 Overview
 
