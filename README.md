@@ -6,8 +6,11 @@
 [![HACS][hacs-shield]][hacs]
 [![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
 [![GitHub Sponsors][github-shield]][github]
-
 [![GitHub Release](https://img.shields.io/github/v/release/andrejs2/slovenian_weather_integration?style=for-the-badge)](https://github.com/andrejs2/slovenian_weather_integration/releases/tag/v1.0.0)
+
+![Made in Slovenia](https://img.shields.io/badge/Made_in-Slovenia-005DA4?style=for-the-badge&logo=flag&logoColor=white)
+
+
 
 <div align="center">
   <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/arso_vreme.PNG?raw=true" alt="Icon Preview" width="300">
