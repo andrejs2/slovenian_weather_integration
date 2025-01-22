@@ -8,6 +8,7 @@
 [![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
 [![GitHub Sponsors][github-shield]][github]
 
+[![GitHub Release](https://img.shields.io/github/v/release/andrejs2/slovenian_weather_integration?style=for-the-badge)](https://github.com/andrejs2/slovenian_weather_integration/releases/tag/v1.0.0)
 
 
 # 🌦️ 🇸🇮 Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
