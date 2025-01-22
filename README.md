@@ -336,8 +336,8 @@ The integration implements two of the async methods `async_forecast_daily`, `asy
 
 To use actions on `weather` see this [Weather Integration](https://www.home-assistant.io/integrations/weather/#action-weatherget_forecasts) page.
 
-![alt text](https://github.com/andrejs2/arso-vremenska-integracija/blob/main/images/kred1.JPG?raw=true)
-![alt text](https://github.com/andrejs2/arso-vremenska-integracija/blob/main/images/kred2.JPG?raw=true)
+![alt text](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/kred1.JPG?raw=true)
+![alt text](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/kred2.JPG?raw=true)
 
 ### Examples
 ```
@@ -368,6 +368,9 @@ If you wish to create a `sensor` (for instance a temperature sensor for Ljubljan
       unit_of_measurement: °C
       device_class: temperature
 ```
+After you restart HA or reload configuration of your HA instance, you get sensor like this:
+
+![alt text](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/temp_arso_lj.JPG?raw=true)
 
 ## Unique ID Support
 
