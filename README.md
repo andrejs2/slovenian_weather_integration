@@ -357,7 +357,18 @@ template:
         unique_id: temperature_forecast_next_hour
         state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
         unit_of_measurement: °C
+        device_class: temperature
 ```
+If you wish to create a `sensor` (for instance a temperature sensor for Ljubljana) from your weather entity, you can use a template:
+```
+- sensor:
+    - name: Temperatura Ljubljana
+      unique_id: temperatura_arso_weather_ljubljana
+      state: "{{ state_attr('weather.arso_vreme_ljubljana', 'temperature') }}"
+      unit_of_measurement: °C
+      device_class: temperature
+```
+
 ## Unique ID Support
 
 Each weather entity now gets a unique ID based on its location and configuration entry. This allows you to customize and edit the entity from the Home Assistant UI.
