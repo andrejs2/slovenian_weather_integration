@@ -31,5 +31,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Handle options update."""
-    # Ensure the entity is updated when the config entry is modified
+    
     await hass.config_entries.async_reload(entry.entry_id)

@@ -31,7 +31,6 @@ WIND_DIRECTION_MAP = {
     "N": "N"  # North
 }
 
-# Translation map for Slovenian cloud conditions to Home Assistant-compatible terms
 CLOUD_CONDITION_MAP = {
     # Common weather conditions from 'wwsyn_shortText' and 'clouds_shortText'
     "jasno": "sunny",
@@ -80,6 +79,8 @@ CLOUD_CONDITION_MAP = {
     "overcast_lightsn_night": "snowy",
     "overcast_modra_night": "rainy",
     "overcast_modra_day": "rainy",
+    "overcast_heavysn_night": "snowy",
+    "overcast_heavysn_day": "snowy",
     
     # Partly cloudy and rainy conditions ('clouds_icon_wwsyn_icon')
     "partcloudy_night": "partlycloudy", 
@@ -168,7 +169,7 @@ CLOUD_CONDITION_MAP = {
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up ARSO Weather platform from a config entry."""
-    location = config_entry.data.get('location', 'Ljubljana')  # Get location from user input
+    location = config_entry.data.get('location', 'Ljubljana') 
     async_add_entities([ArsoWeather(location, config_entry.entry_id)], True)
 
 class ArsoWeather(WeatherEntity):
@@ -189,7 +190,7 @@ class ArsoWeather(WeatherEntity):
         self._attr_condition = None
         self._daily_forecast = None
         self._hourly_forecast = None
-        self._entry_id = entry_id  # Store entry_id for unique_id
+        self._entry_id = entry_id 
         self._attr_native_dew_point = None
         self._attr_native_visibility = None
         self._attr_native_visibility_unit = None
@@ -310,7 +311,6 @@ class ArsoWeather(WeatherEntity):
 
                         condition = clouds_icon or wwsyn_short or clouds_short
 
-                        # Check if it's daytime or nighttime
                         if condition == "jasno" and not self.is_daytime():
                             self._attr_condition = "clear-night"
                         else:
@@ -362,24 +362,23 @@ class ArsoWeather(WeatherEntity):
         """Process the hourly forecast data."""
         hourly_forecasts = []
 
-        # Loop over all days in the forecast data
         for day in forecast_data["forecast3h"]["features"][0]["properties"]["days"]:
-            # Loop over each hourly timeline entry within each day
+            
             for entry in day["timeline"]:
                 forecast_time = datetime.strptime(entry["valid"], "%Y-%m-%dT%H:%M:%S%z")
 
-                # Get the weather conditions for the hour
+                
                 clouds_icon = entry.get("clouds_icon_wwsyn_icon", "").lower()
                 wwsyn_short = entry.get("wwsyn_shortText", "").lower()
                 clouds_short = entry.get("clouds_shortText", "").lower()
 
-                # Use cascading logic to select the condition
+                
                 condition = clouds_icon or wwsyn_short or clouds_short
 
-                # Translate the condition
+                
                 condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
 
-                # Build the hourly forecast entry
+                
                 hourly_forecasts.append({
                     "datetime": forecast_time,
                     "temperature": float(entry.get("t", 0)),
@@ -398,42 +397,42 @@ class ArsoWeather(WeatherEntity):
         """Process the daily forecast data."""
         daily_forecasts = []
 
-        # Loop over all available forecast days in the data
+        
         for day in forecast_data["forecast3h"]["features"][0]["properties"]["days"]:
-            # Extract the date for the forecast
+            
             forecast_time = day["date"]
 
-            # Get min/max temperature by iterating over all entries in the day's timeline
+            
             temperatures = [float(entry.get("t", 0)) for entry in day["timeline"] if "t" in entry]
             min_temp = min(temperatures) if temperatures else None
             max_temp = max(temperatures) if temperatures else None
 
-            # Get the weather conditions for the day
+            
             clouds_icon = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower()
             wwsyn_short = day["timeline"][0].get("wwsyn_shortText", "").lower()
             clouds_short = day["timeline"][0].get("clouds_shortText", "").lower()
 
-            # Use cascading logic to select the condition
+           
             condition = clouds_icon or wwsyn_short or clouds_short
 
-            # Translate the condition
+            
             condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
 
-            # Build the daily forecast entry
+            
             daily_forecasts.append({
                 "datetime": forecast_time,
-                "temperature": max_temp,  # Max temperature for the day
-                "templow": min_temp,  # Min temperature for the day
+                "temperature": max_temp, 
+                "templow": min_temp,  
                 "precipitation": float(day["timeline"][0].get("tp_acc", 0)),
                 "wind_speed": float(day["timeline"][0].get("ff_val", 0)),
                 "wind_bearing": WIND_DIRECTION_MAP.get(day["timeline"][0].get("dd_shortText", ""), ""),
                 "wind_gust_speed": float(day["timeline"][0].get("ffmax_val", 0) or 0),
                 "condition": condition_translated,
-                "pressure": float(day["timeline"][0].get("msl", 0)),  # Add air pressure
+                "pressure": float(day["timeline"][0].get("msl", 0)),  
             })
 
         _LOGGER.debug("Processed Daily Forecasts: %s", daily_forecasts)
-        return daily_forecasts[:11]  # Return 11 days
+        return daily_forecasts[:11]  
 
     async def async_forecast_hourly(self):
         """Return the hourly forecast."""

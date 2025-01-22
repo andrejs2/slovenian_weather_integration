@@ -5,7 +5,7 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from homeassistant.core import callback
 from .const import DOMAIN, LOCATIONS_URL
-from typing import Any, Dict  # Adjust depending on Python version
+from typing import Any, Dict 
 from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,21 +18,21 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # Check if the location has already been added
+            
             if any(entry.data["location"] == user_input["location"] for entry in self._async_current_entries()):
                 errors["base"] = "location_exists"
             else:
-                # Proceed to create an entry if the location is selected
+                
                 return self.async_create_entry(title=user_input["location"], data=user_input)
 
-        # Fetch locations from the external JSON
+        
         locations = await self._fetch_locations()
 
-        # Handle error in case no valid locations are returned
+        
         if "Error" in locations[0]:
             errors["base"] = "cannot_fetch_locations"
 
-        # Define the schema for the form
+        
         schema = vol.Schema({
             vol.Required("location"): vol.In(locations)
         })
@@ -48,7 +48,7 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         try:
                             data = await response.json()
 
-                            # Extract 'title' from each element in 'features'
+                            
                             locations = [item['properties']['title'] for item in data['features']]
                             return locations if locations else ["No locations found"]
                         except ValueError:

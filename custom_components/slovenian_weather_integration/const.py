@@ -3,7 +3,7 @@ DEFAULT_NAME = "ARSO Weather Integration"
 API_URL = "https://vreme.arso.gov.si/api/1.0/location/"
 LOCATIONS_URL = "https://vreme.arso.gov.si/uploads/probase/www/fproduct/json/sl/locations.json"
 
-# example: https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observationAms_KREDA-ICA_latest.rss
+
 # Mapping med lokacijami in RSS identifikatorji postaj
 RSS_STATION_CODES = {
     # Opazovalne postaje (observation)
