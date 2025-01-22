@@ -5,8 +5,8 @@
   "documentation": "https://github.com/andrejs2/slovenian_weather_integration/",
   "issue_tracker": "https://github.com/andrejs2/slovenian_weather_integration/issues/",
   "dependencies": [],
-  "codeowners": ["@andrejs2"],
   "requirements": [],
+  "codeowners": ["@andrejs2"],
   "iot_class": "cloud_polling",
   "config_flow": true,
   "homeassistant": "2023.1.0"
