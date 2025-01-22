@@ -1,5 +1,4 @@
 {
   "name": "ARSO Weather",
-  "render_readme": true,
-  "domains": ["slovenian_weather_integration"]
+  "render_readme": true
 }
