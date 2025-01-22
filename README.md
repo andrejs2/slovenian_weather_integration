@@ -1,25 +1,18 @@
 
-![Python][python-shield]
+[![Python][python-shield]][python]
 [![GitHub Release][releases-shield]][releases]
-[![Licence][license-shield]][license]
+[![License][license-shield]][license]
 [![Maintainer][maintainer-shield]][maintainer]
 [![Home Assistant][homeassistant-shield]][homeassistant]
-[![HACS][hacs-shield]][hacs]  
-[![Github Sponsors][github-shield]][github]
+[![HACS][hacs-shield]][hacs]
 [![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
+[![GitHub Sponsors][github-shield]][github]
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://hacs.xyz/)
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Integration-blue.svg)
-![Custom Component](https://img.shields.io/badge/Custom%20Component-Available-brightgreen.svg)
-![Integration](https://img.shields.io/badge/Integration-Supported-blue.svg)
 
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fandrejs2%2Fslovenian_weather_integration&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://github.com/andrejs2/slovenian_weather_integration)
-[![GitHub issues](https://img.shields.io/github/issues/andrejs2/slovenian_weather_integration)](https://github.com/andrejs2/slovenian_weather_integration/issues)
-![GitHub User's stars](https://img.shields.io/github/stars/andrejs2)
-![GitHub Repo stars](https://img.shields.io/github/stars/andrejs2/slovenian_weather_integration)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/y/andrejs2/slovenian_weather_integration)
+
 # 🌦️ 🇸🇮 Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
 ## 🌍 Overview
+
 
 **Slovenian Weather Integration** 🇸🇮 is a custom component for [Home Assistant](https://www.home-assistant.io/), leveraging real-time weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). It provides detailed weather information and forecasts tailored to users in Slovenia and neighboring regions.
 
@@ -401,18 +394,20 @@ Vse svoje projekte razvijam v prostem času, saj programiranje ni moj poklic, a 
 <a href="https://www.buymeacoffee.com/andrejs2" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
 
-[python-shield]: https://img.shields.io/badge/python-3.10+-blue.svg
-[releases-shield]: https://img.shields.io/github/release/andrejs2/slovenian_weather_integration.svg
+[python-shield]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
+[python]: https://www.python.org/
+[releases-shield]: https://img.shields.io/github/v/release/andrejs2/slovenian_weather_integration?style=for-the-badge
 [releases]: https://github.com/andrejs2/slovenian_weather_integration/releases
-[license-shield]: https://img.shields.io/github/license/andrejs2/slovenian_weather_integration.svg
-[license]: LICENSE
-[maintainer-shield]: https://img.shields.io/badge/maintainer-andrejs2-blue
+[license-shield]: https://img.shields.io/github/license/andrejs2/slovenian_weather_integration?style=for-the-badge
+[license]: ./LICENSE
+[maintainer-shield]: https://img.shields.io/badge/MAINTAINER-%40andrejs2-41BDF5?style=for-the-badge
 [maintainer]: https://github.com/andrejs2
-[homeassistant-shield]: https://img.shields.io/badge/Home%20Assistant-Integration-blue.svg
+[homeassistant-shield]: https://img.shields.io/badge/home%20assistant-%2341BDF5.svg?style=for-the-badge&logo=home-assistant&logoColor=white
 [homeassistant]: https://www.home-assistant.io/
-[hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge
 [hacs]: https://hacs.xyz/
-[github-shield]: https://img.shields.io/badge/Sponsors-GitHub-lightgrey.svg
-[github]: https://github.com/sponsors/andrejs2
-[buymecoffee-shield]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-orange.svg
+[buymecoffee-shield]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black
 [buymecoffee]: https://www.buymeacoffee.com/andrejs2
+[github-shield]: https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA
+[github]: https://github.com/sponsors/andrejs2
+
