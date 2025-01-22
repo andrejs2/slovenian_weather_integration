@@ -92,23 +92,23 @@
 Below is an example automation using hourly forecast data:
 
 ```yaml
-- trigger:
- - platform: time_pattern
-   hours: /1  # Trigger every hour
-action:
- - service: weather.get_forecasts
-   data:
-     type: hourly
-   target:
-     entity_id: weather.arso_vreme_ljubljana
-   response_variable: hourly
-sensor:
- - name: Temperature forecast next hour
-   unique_id: temperature_forecast_next_hour
-   state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
-   unit_of_measurement: °C
+template:
+  - trigger:
+   - platform: time_pattern
+     hours: /1  # Trigger every hour
+  action:
+   - service: weather.get_forecasts
+     data:
+       type: hourly
+     target:
+       entity_id: weather.arso_vreme_ljubljana
+     response_variable: hourly
+  sensor:
+   - name: Temperature forecast next hour
+     unique_id: temperature_forecast_next_hour
+     state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
+     unit_of_measurement: °C
 ```
-
 ## Locations - manned and unmanned meteorological stations
 
 This integration requires selecting a location (`Title` column) from table below (Notice: locations can change unannounced!).
@@ -341,24 +341,22 @@ To use actions on `weather` see this [Weather Integration](https://www.home-assi
 
 ### Examples
 ```
-- trigger:
-    - platform: time_pattern
-      hours: /1 # Sproži se vsako uro
-  action:
-    - service: weather.get_forecasts
-      data:
-        type: hourly
-      target:
-        entity_id: weather.arso_vreme_ljubljana
-      response_variable: hourly
-
-```
-```
-  sensor:
-    - name: Temperature forecast next hour
-      unique_id: temperature_forecast_next_hour
-      state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
-      unit_of_measurement: °C
+template:
+  - trigger:
+      - platform: time_pattern
+        hours: /1 # Sproži se vsako uro
+    action:
+      - service: weather.get_forecasts
+        data:
+          type: hourly
+        target:
+          entity_id: weather.arso_vreme_ljubljana
+        response_variable: hourly
+    sensor:
+      - name: Temperature forecast next hour
+        unique_id: temperature_forecast_next_hour
+        state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
+        unit_of_measurement: °C
 ```
 ## Unique ID Support
 
