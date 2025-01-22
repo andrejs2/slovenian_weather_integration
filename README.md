@@ -11,6 +11,7 @@
 
 
 ![Icon Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/icon.png?raw=true)
+![Icon Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/arso_vreme.PNG?raw=true)
 # 🌦️ 🇸🇮 Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
 ## 🌍 Overview
 
