@@ -9,11 +9,14 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/andrejs2/slovenian_weather_integration?style=for-the-badge)](https://github.com/andrejs2/slovenian_weather_integration/releases/tag/v1.0.0)
 
+<div align="center">
+  <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/arso_vreme.PNG?raw=true" alt="Icon Preview" width="300">
 
-![Icon Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/icon.png?raw=true)
-![Icon Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/arso_vreme.PNG?raw=true)
+</div>
+
 # 🌦️ 🇸🇮 Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
 ## 🌍 Overview
+
 
 
 **Slovenian Weather Integration** 🇸🇮 is a custom component for [Home Assistant](https://www.home-assistant.io/), leveraging real-time weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). It provides detailed weather information and forecasts tailored to users in Slovenia and neighboring regions.
