@@ -1,57 +1,115 @@
-[![GitHub issues](https://img.shields.io/github/issues/andrejs2/slovenian_weather_integration)](https://github.com/andrejs2/slovenian_weather_integration) 
 
-# Home Assistant Custom Component - ARSO Weather (BETA)
-## Vremenska integracija za Home Assistant
+![Python][python-shield]
+[![GitHub Release][releases-shield]][releases]
+[![Licence][license-shield]][license]
+[![Maintainer][maintainer-shield]][maintainer]
+[![Home Assistant][homeassistant-shield]][homeassistant]
+[![HACS][hacs-shield]][hacs]  
+[![Github Sponsors][github-shield]][github]
+[![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
 
-This is a custom component for Home Assistant Weather Integration where data is provided by [ARSO Vreme](https://vreme.arso.gov.si/napoved). It fetches real-time weather data, daily forecasts, and 3-hour forecasts from the Agencija RS za okolje (ARSO - Slovenian Environment Agency).
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://hacs.xyz/)
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Integration-blue.svg)
+![Custom Component](https://img.shields.io/badge/Custom%20Component-Available-brightgreen.svg)
+![Integration](https://img.shields.io/badge/Integration-Supported-blue.svg)
 
-****Features****
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fandrejs2%2Fslovenian_weather_integration&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://github.com/andrejs2/slovenian_weather_integration)
+[![GitHub issues](https://img.shields.io/github/issues/andrejs2/slovenian_weather_integration)](https://github.com/andrejs2/slovenian_weather_integration/issues)
+![GitHub User's stars](https://img.shields.io/github/stars/andrejs2)
+![GitHub Repo stars](https://img.shields.io/github/stars/andrejs2/slovenian_weather_integration)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/y/andrejs2/slovenian_weather_integration)
+# 🌦️ 🇸🇮 Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
+## 🌍 Overview
 
-***Current Weather Conditions***: Retrieves real-time weather observations from ARSO, including temperature, humidity, wind speed, wind gust speed, pressure, visibility, dew point and weather condition.
+**Slovenian Weather Integration** 🇸🇮 is a custom component for [Home Assistant](https://www.home-assistant.io/), leveraging real-time weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). It provides detailed weather information and forecasts tailored to users in Slovenia and neighboring regions.
 
-***3 Hour  and Daily Forecasts:*** Displays weather forecasts (temperature, wind speed, wind gust speed, pressure, precipitation and weather condition for 3 hour interval and up to 6 days ahead. 
+---
 
-![alt text](https://github.com/andrejs2/arso-vremenska-integracija/blob/main/images/lju1.JPG?raw=true)
-![alt text](https://github.com/andrejs2/arso-vremenska-integracija/blob/main/images/lju2.JPG?raw=true)
-![alt text](https://github.com/andrejs2/arso-vremenska-integracija/blob/main/images/lju3.JPG?raw=true)
-![alt text](https://github.com/andrejs2/arso-vremenska-integracija/blob/main/images/lju4.JPG?raw=true)
+## ✨ Features
 
-Cascading Logic for Weather Conditions: The integration uses cascading logic to determine and provide weather conditions, checking weather phenomenon in combination with clouds, weather phenomenon, and clouds to ensure accurate conditions are displayed. 
+- **🌎 Real-Time Weather Conditions**: Temperature, humidity, wind speed, gusts, pressure, visibility, dew point, and weather conditions.
+- **⏱️ 3-Hour & Daily Forecasts**: Up to 6 days of detailed forecasts, including precipitation and wind data.
+- **🎨 Cascading Logic for Weather Conditions**: Ensures accurate interpretation of ARSO's comprehensive weather data.
+- **🎯 Unique IDs**: Customize and edit entities directly in the Home Assistant UI.
+- **🎮 English Translations**: Slovenian cloud condition terms are translated into English for compatibility.
 
-***ARSO je pri opisu vremena (trenutno stanje) zelo radodaren in natančen, saj poleg pokritosti neba (oblačnosti) podaja podatke o vremenu tudi z vremenskimi pojavi in kombinacijami le-teh. Zato so možne vse mogoče kombinacije opisa vremena, ki pa jih HA in njegova [weather integration](https://developers.home-assistant.io/docs/core/entity/weather/) ne omogoča in so zato reducirane na osnovne pojave.***
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju1.JPG?raw=true)
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju2.JPG?raw=true)
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju3.JPG?raw=true)
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju4.JPG?raw=true)
 
-Unique ID Support: Each entity now has a unique ID, allowing you to edit and customize entities in Home Assistant. 
+---
 
-Slovenian Cloud Condition Translation: Slovenian cloud conditions are translated into English for compatibility with Home Assistant.
+## ⚙️ Installation
 
-## Installation
-
-****No registration, account or fiddling with API's needed. The integration takes care of everything. You just select the desired location or multiple ones and you're done!****
+### 🟠 HACS Installation 
 
 
-***HACS***
-
-HACS installation is currently under go.
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andrejs2&repository=slovenian_weather_integration&category=integration)
 
-***Manual Installation***
+![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_1.PNG?raw=true)
 
-Download or clone this repository.
+![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_2.PNG?raw=true)
 
-Copy the `arso-vremenska-intgracija/custom_components` folder to your Home Assistant `custom_components` directory:
+![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_3.PNG?raw=true)
 
-    <config directory>/custom_components/arso_weather_integration
+![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_4.PNG?raw=true)
 
-Restart Home Assistant to recognize the new integration.
+![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_5.PNG?raw=true)
 
-## Setup
 
-Go to the Home Assistant `Configuration`.
-Navigate to `Devices & Services`.
-Click `Add Integration` and search for `ARSO Weather Integration`.
-Select the integration and follow the prompts to choose your location.
+### ⚡ Manual Installation
 
-## Configuration
+1. Download or clone this repository.
+2. Copy the `custom_components/slovenian_weather_integration` folder to your Home Assistant `custom_components` directory:
+3. Restart Home Assistant to recognize the new integration.
+
+---
+
+## 🛠️ Setup
+
+1. Go to **Configuration** → **Devices & Services** in Home Assistant.
+2. Click **Add Integration**.
+3. Search for **ARSO Weather Integration**.
+4. Follow the prompts to select your desired location(s).
+
+---
+
+## 🌟 Supported Features
+
+- **Temperature (°C)**
+- **Humidity (%)**
+- **Pressure (hPa)**
+- **Wind Speed (km/h)**
+- **Dew Point** (current weather only)
+- **Visibility (km)** (current weather only)
+- **Precipitation (mm)** (forecasts only)
+
+---
+
+## 📜 Configuration Example
+
+Below is an example automation using hourly forecast data:
+
+```yaml
+- trigger:
+ - platform: time_pattern
+   hours: /1  # Trigger every hour
+action:
+ - service: weather.get_forecasts
+   data:
+     type: hourly
+   target:
+     entity_id: weather.arso_vreme_ljubljana
+   response_variable: hourly
+sensor:
+ - name: Temperature forecast next hour
+   unique_id: temperature_forecast_next_hour
+   state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
+   unit_of_measurement: °C
+```
+
+## Locations - manned and unmanned meteorological stations
 
 This integration requires selecting a location (`Title` column) from table below (Notice: locations can change unannounced!).
 
@@ -317,6 +375,7 @@ If you encounter issues, you can enable debug logging for the integration by add
 ## Known Issues
 
 Precipitation Data: Real-time precipitation may not always be available. But is visible as attribute to weather entitiy.
+
 Forecast Availability: Ensure the selected location supports both 3 hour and daily forecasts.
 
 
@@ -340,3 +399,20 @@ If you come across any bugs or mistakes in the **voice assistant**, please repor
 Vse svoje projekte razvijam v prostem času, saj programiranje ni moj poklic, a mi je to v veselje. Vsaka pozornost, bodisi kavica ali evro, mi omogoča nadaljevanje tega dela in sem zanjo zelo hvaležen.
 
 <a href="https://www.buymeacoffee.com/andrejs2" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+
+[python-shield]: https://img.shields.io/badge/python-3.10+-blue.svg
+[releases-shield]: https://img.shields.io/github/release/andrejs2/slovenian_weather_integration.svg
+[releases]: https://github.com/andrejs2/slovenian_weather_integration/releases
+[license-shield]: https://img.shields.io/github/license/andrejs2/slovenian_weather_integration.svg
+[license]: LICENSE
+[maintainer-shield]: https://img.shields.io/badge/maintainer-andrejs2-blue
+[maintainer]: https://github.com/andrejs2
+[homeassistant-shield]: https://img.shields.io/badge/Home%20Assistant-Integration-blue.svg
+[homeassistant]: https://www.home-assistant.io/
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg
+[hacs]: https://hacs.xyz/
+[github-shield]: https://img.shields.io/badge/Sponsors-GitHub-lightgrey.svg
+[github]: https://github.com/sponsors/andrejs2
+[buymecoffee-shield]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-orange.svg
+[buymecoffee]: https://www.buymeacoffee.com/andrejs2
