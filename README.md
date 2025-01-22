@@ -1,8 +1,4 @@
-# THIS IS WORK IN PROGRESS - DO NOT USE
-https://hacs.xyz/docs/publish/include/#check-brands
-https://code.visualstudio.com/docs/devcontainers/tutorial
-https://www.hacs.xyz/docs/contribute/devcontainer/
-
+[![GitHub issues](https://img.shields.io/github/issues/andrejs2/slovenian_weather_integration)](https://github.com/andrejs2/slovenian_weather_integration) 
 
 # Home Assistant Custom Component - ARSO Weather (BETA)
 ## Vremenska integracija za Home Assistant
@@ -36,7 +32,7 @@ Slovenian Cloud Condition Translation: Slovenian cloud conditions are translated
 ***HACS***
 
 HACS installation is currently under go.
-
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andrejs2&repository=slovenian_weather_integration&category=integration)
 
 ***Manual Installation***
 
