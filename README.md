@@ -351,13 +351,15 @@ To use actions on `weather` see this [Weather Integration](https://www.home-assi
       target:
         entity_id: weather.arso_vreme_ljubljana
       response_variable: hourly
+
+```
+```
   sensor:
     - name: Temperature forecast next hour
       unique_id: temperature_forecast_next_hour
       state: "{{ hourly['weather.arso_vreme_ljubljana'].forecast[0].temperature }}"
       unit_of_measurement: °C
 ```
-
 ## Unique ID Support
 
 Each weather entity now gets a unique ID based on its location and configuration entry. This allows you to customize and edit the entity from the Home Assistant UI.
