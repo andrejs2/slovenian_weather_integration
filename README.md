@@ -1,6 +1,5 @@
 
 [![Python][python-shield]][python]
-[![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license]
 [![Maintainer][maintainer-shield]][maintainer]
 [![Home Assistant][homeassistant-shield]][homeassistant]
