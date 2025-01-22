@@ -1,5 +1,5 @@
 {
-  "domain": "arso_weather_integration",
+  "domain": "slovenian_weather_integration",
   "name": "ARSO Weather",
   "version": "1.3.0",
   "documentation": "https://github.com/andrejs2/slovenian_weather_integration/",
@@ -8,6 +8,5 @@
   "requirements": [],
   "codeowners": ["@andrejs2"],
   "iot_class": "cloud_polling",
-  "config_flow": true,
-  "homeassistant": "2023.1.0"
+  "config_flow": true
 }
