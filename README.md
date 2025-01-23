@@ -16,11 +16,14 @@
 
 
 
-
 <div align="center">
   <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/arso_vreme.PNG?raw=true" alt="Icon Preview" width="300">
-
 </div>
+
+
+
+
+[<img src="https://em-content.zobj.net/thumbs/240/microsoft/319/rocket_1f680.png" alt="🚀" width="30"/> ![Install via HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andrejs2&repository=slovenian_weather_integration&category=integration)
 
 # 🌦️  Slovenian Weather Integration 🇸🇮 - Home Assistant Custom Component
 ## 🌍 Overview
