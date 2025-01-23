@@ -13,23 +13,25 @@ from astral import LocationInfo
 import pytz
 import feedparser
 import re
-from .const import DOMAIN, RSS_STATION_CODES  # Uvozite RSS_STATION_CODES iz const.py
+from .const import DOMAIN, RSS_STATION_CODES  
 from homeassistant.const import UnitOfLength
 import asyncio
 
 _LOGGER = logging.getLogger(__name__)
 
+
 WIND_DIRECTION_MAP = {
     "S": "S",
-    "J": "S",  # South
-    "SZ": "NW",  # Northwest
-    "SV": "NE",  # Northeast
-    "Z": "W",  # West
-    "V": "E",  # East
-    "JZ": "SW",  # Southwest
-    "JV": "SE",  # Southeast
-    "N": "N"  # North
+    "J": "S",  
+    "SZ": "NW",  
+    "SV": "NE",  
+    "Z": "W",  
+    "V": "E",  
+    "JZ": "SW",
+    "JV": "SE",
+    "N": "N" 
 }
+
 
 CLOUD_CONDITION_MAP = {
     # Common weather conditions from 'wwsyn_shortText' and 'clouds_shortText'
@@ -51,11 +53,11 @@ CLOUD_CONDITION_MAP = {
     # Overcast conditions with thunderstorms and rain ('clouds_icon_wwsyn_icon')
     "overcast_heavytsra_day": "lightning-rainy",
     "overcast_heavytsra_night": "lightning-rainy",
-    "overcast_heavyra_day": "rainy",  # Corrected to lowercase
+    "overcast_heavyra_day": "rainy",  
     "overcast_heavyra_night": "rainy",
     "overcast_modtsra_day": "lightning-rainy",
     "overcast_modtsra_night": "lightning-rainy",
-    "overcast_modra_day": "rainy",  # Corrected to lowercase
+    "overcast_modra_day": "rainy",  
     "overcast_modra_night": "rainy",
     "overcast_lightra_day": "rainy",
     "overcast_lightra_night": "rainy",
@@ -113,10 +115,10 @@ CLOUD_CONDITION_MAP = {
     "partcloudy_heavytsra_night": "lightning-rainy",
     
     # Storm conditions ('clouds_icon_wwsyn_icon')
-    "prevcloudy_modts_day": "lightning",  # Corrected to lowercase
-    "prevcloudy_modts_night": "lightning",  # Corrected to lowercase
-    "prevcloudy_heavyts_day": "lightning",  # Corrected to lowercase
-    "prevcloudy_heavyts_night": "lightning",  # Corrected to lowercase
+    "prevcloudy_modts_day": "lightning",  
+    "prevcloudy_modts_night": "lightning",  
+    "prevcloudy_heavyts_day": "lightning",  
+    "prevcloudy_heavyts_night": "lightning",  
     "prevcloudy_lightra_night": "rainy",
     "prevcloudy_lightra_day": "rainy",
     "prevcloudy_modra_day": "rainy",
@@ -150,7 +152,7 @@ CLOUD_CONDITION_MAP = {
     "clear_lightfg_night": "fog",
     "clear_lightfg_day": "fog",
 
-    # Additional conditions ('clouds_icon_wwsyn_icon', 'wwsyn_shortText', etc.)
+    
     "mostly_clear_night": "clear-night",
     "mostly_clear_day": "sunny",
     "foggy": "fog",
@@ -169,7 +171,7 @@ CLOUD_CONDITION_MAP = {
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up ARSO Weather platform from a config entry."""
-    location = config_entry.data.get('location', 'Ljubljana') 
+    location = config_entry.data.get('location', 'Ljubljana')  
     async_add_entities([ArsoWeather(location, config_entry.entry_id)], True)
 
 class ArsoWeather(WeatherEntity):
@@ -190,7 +192,7 @@ class ArsoWeather(WeatherEntity):
         self._attr_condition = None
         self._daily_forecast = None
         self._hourly_forecast = None
-        self._entry_id = entry_id 
+        self._entry_id = entry_id  
         self._attr_native_dew_point = None
         self._attr_native_visibility = None
         self._attr_native_visibility_unit = None
@@ -311,6 +313,7 @@ class ArsoWeather(WeatherEntity):
 
                         condition = clouds_icon or wwsyn_short or clouds_short
 
+                        
                         if condition == "jasno" and not self.is_daytime():
                             self._attr_condition = "clear-night"
                         else:
@@ -325,7 +328,7 @@ class ArsoWeather(WeatherEntity):
                 rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
                 feed_content = await self._fetch_rss_feed(rss_url)
                 if feed_content:
-                    # Asynchronously parse the RSS feed
+                    
                     feed = await asyncio.to_thread(feedparser.parse, feed_content)
                     entry = feed.entries[0]
                     details = self._extract_weather_details(entry)
@@ -341,7 +344,7 @@ class ArsoWeather(WeatherEntity):
                 _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
         else:
             _LOGGER.info(f"No RSS feed available for location {self._location}.")
-        # Fetch forecast data
+        
         await self._fetch_forecasts()
 
     async def _fetch_forecasts(self):
@@ -351,10 +354,10 @@ class ArsoWeather(WeatherEntity):
                 if response.status == 200:
                     forecast_data = await response.json()
 
-                    # Log the entire forecast data for debugging purposes
+                    
                     _LOGGER.debug("Full Forecast Data: %s", forecast_data)
 
-                    # Process the forecast data
+                    
                     self._hourly_forecast = self._process_hourly_forecast(forecast_data)
                     self._daily_forecast = self._process_daily_forecast(forecast_data)
 
@@ -362,77 +365,73 @@ class ArsoWeather(WeatherEntity):
         """Process the hourly forecast data."""
         hourly_forecasts = []
 
+        
         for day in forecast_data["forecast3h"]["features"][0]["properties"]["days"]:
             
             for entry in day["timeline"]:
                 forecast_time = datetime.strptime(entry["valid"], "%Y-%m-%dT%H:%M:%S%z")
 
                 
+                precipitation = float(entry.get("tp_acc", 0))
+                temperature = float(entry.get("t", 0))
+                wind_speed = float(entry.get("ff_val", 0))
+                wind_bearing = WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), "")
+
+                
                 clouds_icon = entry.get("clouds_icon_wwsyn_icon", "").lower()
-                wwsyn_short = entry.get("wwsyn_shortText", "").lower()
-                clouds_short = entry.get("clouds_shortText", "").lower()
-
-                
-                condition = clouds_icon or wwsyn_short or clouds_short
-
-                
-                condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
+                condition = CLOUD_CONDITION_MAP.get(clouds_icon, "unknown")
 
                 
                 hourly_forecasts.append({
                     "datetime": forecast_time,
-                    "temperature": float(entry.get("t", 0)),
-                    "precipitation": float(entry.get("tp_acc", 0)),
-                    "wind_speed": float(entry.get("ff_val", 0)),
-                    "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
-                    "wind_gust_speed": float(entry.get("ffmax_val", 0) or 0), 
-                    "condition": condition_translated,
-                    "pressure": float(day["timeline"][0].get("msl", 0)),  # Add air pressure
+                    "temperature": temperature,
+                    "precipitation": precipitation,
+                    "wind_speed": wind_speed,
+                    "wind_bearing": wind_bearing,
+                    "condition": condition,
+                    "pressure": float(entry.get("msl", 0)),
                 })
 
         _LOGGER.debug("Processed Hourly Forecasts: %s", hourly_forecasts)
         return hourly_forecasts
+
 
     def _process_daily_forecast(self, forecast_data):
         """Process the daily forecast data."""
         daily_forecasts = []
 
         
-        for day in forecast_data["forecast3h"]["features"][0]["properties"]["days"]:
-            
+        for day in forecast_data["forecast24h"]["features"][0]["properties"]["days"]:
+            #
             forecast_time = day["date"]
 
             
-            temperatures = [float(entry.get("t", 0)) for entry in day["timeline"] if "t" in entry]
-            min_temp = min(temperatures) if temperatures else None
-            max_temp = max(temperatures) if temperatures else None
+            precipitation = float(day["timeline"][0].get("tp_24h_acc", 0))
 
             
-            clouds_icon = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower()
-            wwsyn_short = day["timeline"][0].get("wwsyn_shortText", "").lower()
-            clouds_short = day["timeline"][0].get("clouds_shortText", "").lower()
-
-           
-            condition = clouds_icon or wwsyn_short or clouds_short
+            min_temp = float(day["timeline"][0].get("tnsyn", None))
+            max_temp = float(day["timeline"][0].get("txsyn", None))
 
             
+            wind_speed = float(day["timeline"][0].get("ff_val", 0))
+            wind_bearing = WIND_DIRECTION_MAP.get(day["timeline"][0].get("dd_shortText", ""), "")
+            condition = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower()
             condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
 
             
             daily_forecasts.append({
                 "datetime": forecast_time,
-                "temperature": max_temp, 
-                "templow": min_temp,  
-                "precipitation": float(day["timeline"][0].get("tp_acc", 0)),
-                "wind_speed": float(day["timeline"][0].get("ff_val", 0)),
-                "wind_bearing": WIND_DIRECTION_MAP.get(day["timeline"][0].get("dd_shortText", ""), ""),
-                "wind_gust_speed": float(day["timeline"][0].get("ffmax_val", 0) or 0),
+                "temperature": max_temp,
+                "templow": min_temp,
+                "precipitation": precipitation,
+                "wind_speed": wind_speed,
+                "wind_bearing": wind_bearing,
                 "condition": condition_translated,
-                "pressure": float(day["timeline"][0].get("msl", 0)),  
+                "pressure": float(day["timeline"][0].get("msl", 0)),
             })
 
         _LOGGER.debug("Processed Daily Forecasts: %s", daily_forecasts)
-        return daily_forecasts[:11]  
+        return daily_forecasts[:11]  # Return 11 days
 
     async def async_forecast_hourly(self):
         """Return the hourly forecast."""
