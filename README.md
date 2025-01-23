@@ -397,6 +397,16 @@ Forecast Availability: Ensure the selected location supports both 3 hour and dai
 
 If you find any bugs or have feature requests, feel free to open an issue or submit a pull request on GitHub.
 
+## ⭐ Star this repository
+Help other Home Assistant users find this integration by starring this repository. Click ⭐ Star on the top right of the GitHub page.
+
+## Support my work
+Do you enjoy using this Home Assistant integration? Then consider supporting my work using one of the following platforms, your donation is greatly appreciated and keeps me motivated:
+
+<a href="https://www.buymeacoffee.com/andrejs2" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+Vse svoje projekte razvijam v prostem času, saj programiranje ni moj poklic, a mi je to v veselje. Vsaka pozornost, bodisi kavica ali evro, mi omogoča nadaljevanje tega dela in sem zanjo zelo hvaležen.
+
 ## About me
 DIY enthusiast, passionate lawyer, proud dad, and fervent advocate for open source and privacy. Combining legal expertise with a love for hands-on projects🛠️⚖️
 
@@ -410,9 +420,8 @@ When I first started volunteering to translate sentences for the [Assist](https:
 If you come across any bugs or mistakes in the **voice assistant**, please report them on [GitHub issues](https://github.com/home-assistant/intents/issues). Thank you!
 
 
-Vse svoje projekte razvijam v prostem času, saj programiranje ni moj poklic, a mi je to v veselje. Vsaka pozornost, bodisi kavica ali evro, mi omogoča nadaljevanje tega dela in sem zanjo zelo hvaležen.
 
-<a href="https://www.buymeacoffee.com/andrejs2" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
 
 
 [python-shield]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
