@@ -16,6 +16,7 @@ import re
 from .const import DOMAIN, RSS_STATION_CODES  
 from homeassistant.const import UnitOfLength
 import asyncio
+from datetime import datetime, timedelta
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 class ArsoWeather(WeatherEntity):
     """Representation of ARSO Weather entity."""
 
-    _attr_supported_features = WeatherEntityFeature.FORECAST_HOURLY | WeatherEntityFeature.FORECAST_DAILY
+    _attr_supported_features = WeatherEntityFeature.FORECAST_HOURLY | WeatherEntityFeature.FORECAST_DAILY | WeatherEntityFeature.FORECAST_TWICE_DAILY
 
     def __init__(self, location, entry_id):
         self._location = location
@@ -192,6 +193,7 @@ class ArsoWeather(WeatherEntity):
         self._attr_condition = None
         self._daily_forecast = None
         self._hourly_forecast = None
+        self._twice_daily_forecast = None
         self._entry_id = entry_id  
         self._attr_native_dew_point = None
         self._attr_native_visibility = None
@@ -257,8 +259,20 @@ class ArsoWeather(WeatherEntity):
 
     @property
     def forecast(self):
-        """Return the daily forecast."""
-        return self._daily_forecast
+        """Return the forecast data based on the supported features."""
+        if self._attr_supported_features & WeatherEntityFeature.FORECAST_TWICE_DAILY:
+            return self._twice_daily_forecast
+        elif self._attr_supported_features & WeatherEntityFeature.FORECAST_DAILY:
+            return self._daily_forecast
+        elif self._attr_supported_features & WeatherEntityFeature.FORECAST_HOURLY:
+            return self._hourly_forecast
+        return None
+
+
+    @property
+    def twice_daily_forecast(self):
+        """Return twice daily forecast."""
+        return self._twice_daily_forecast
 
     @property
     def native_precipitation(self):
@@ -291,75 +305,37 @@ class ArsoWeather(WeatherEntity):
 
     async def async_update(self):
         """Fetch new state data for the sensor and update the forecast."""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    _LOGGER.debug("Data: %s", data)
+        _LOGGER.debug("Starting update for ARSO Weather: %s", self._location)
+        try:
+            await self._fetch_forecasts()
+            _LOGGER.debug("Forecast update completed successfully for: %s", self._location)
+        except Exception as e:
+            _LOGGER.error("Unhandled error during forecast update for %s: %s", self._location, e, exc_info=True)
 
-                    observation = data.get("observation", {}).get("features", [])[0].get("properties", {}).get("days", [])[0]["timeline"][0]
-
-                    try:
-                        self._attr_native_temperature = float(observation.get("t", 0))
-                        self._attr_humidity = float(observation.get("rh", 0))
-                        self._attr_native_pressure = float(observation.get("msl", 0))
-                        self._attr_native_wind_speed = float(observation.get("ff_val", 0))
-                        self._attr_wind_bearing = WIND_DIRECTION_MAP.get(observation.get("dd_shortText", ""), "")
-                        self._attr_native_wind_gust_speed = float(observation.get("ffmax_val", 0) or 0)
-
-                        clouds_icon = observation.get("clouds_icon_wwsyn_icon", "").lower()
-                        wwsyn_short = observation.get("wwsyn_shortText", "").lower()
-                        clouds_short = observation.get("clouds_shortText", "").lower()
-
-                        condition = clouds_icon or wwsyn_short or clouds_short
-
-                        
-                        if condition == "jasno" and not self.is_daytime():
-                            self._attr_condition = "clear-night"
-                        else:
-                            self._attr_condition = CLOUD_CONDITION_MAP.get(condition, "unknown")
-
-                        _LOGGER.debug("Mapped weather condition: %s", self._attr_condition)
-                        self._attr_native_precipitation = 0  # No direct precipitation data in observation
-                    except (ValueError, KeyError) as e:
-                        _LOGGER.error("Error processing weather observation data: %s", e)
-        if self._station_code:
-            try:
-                rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
-                feed_content = await self._fetch_rss_feed(rss_url)
-                if feed_content:
-                    
-                    feed = await asyncio.to_thread(feedparser.parse, feed_content)
-                    entry = feed.entries[0]
-                    details = self._extract_weather_details(entry)
-
-                    if 'native_dew_point' in details:
-                        self._attr_native_dew_point = float(details['native_dew_point'])
-                    if 'native_visibility' in details:
-                        self._attr_native_visibility = float(details['native_visibility'])
-                        self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
-                else:
-                    _LOGGER.info(f"No RSS feed available for location {self._location}.")
-            except Exception as e:
-                _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
-        else:
-            _LOGGER.info(f"No RSS feed available for location {self._location}.")
-        
-        await self._fetch_forecasts()
 
     async def _fetch_forecasts(self):
-        """Fetch both daily and hourly forecast data."""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
-                if response.status == 200:
-                    forecast_data = await response.json()
+        """Fetch daily, hourly, and simulated twice-daily forecast data."""
+        _LOGGER.debug("Fetching forecast data for location: %s", self._location)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
+                    if response.status == 200:
+                        forecast_data = await response.json()
+                        _LOGGER.debug("API Response: %s", forecast_data)
 
-                    
-                    _LOGGER.debug("Full Forecast Data: %s", forecast_data)
+                        self._hourly_forecast = self._process_hourly_forecast(forecast_data)
+                        _LOGGER.debug("Hourly forecast processed: %s", self._hourly_forecast)
 
-                    
-                    self._hourly_forecast = self._process_hourly_forecast(forecast_data)
-                    self._daily_forecast = self._process_daily_forecast(forecast_data)
+                        self._daily_forecast = self._process_daily_forecast(forecast_data)
+                        _LOGGER.debug("Daily forecast processed: %s", self._daily_forecast)
+
+                        self._twice_daily_forecast = self._process_twice_daily_forecast(forecast_data)
+                        _LOGGER.debug("Twice daily forecast processed: %s", self._twice_daily_forecast)
+                    else:
+                        _LOGGER.warning("Failed to fetch forecast data. HTTP Status: %s", response.status)
+        except Exception as e:
+            _LOGGER.error("Error fetching forecast data for location %s: %s", self._location, e, exc_info=True)
+
 
     def _process_hourly_forecast(self, forecast_data):
         """Process the hourly forecast data."""
@@ -432,6 +408,88 @@ class ArsoWeather(WeatherEntity):
 
         _LOGGER.debug("Processed Daily Forecasts: %s", daily_forecasts)
         return daily_forecasts[:11]  # Return 11 days
+        
+    def _process_twice_daily_forecast(self, forecast_data):
+        """Extract twice daily forecast using 3-hourly and 24-hourly data."""
+        _LOGGER.debug("Starting twice daily forecast processing...")
+        twice_daily_forecasts = []
+
+        try:
+            now = datetime.now(tz=pytz.UTC)
+            max_forecast_date = (now + timedelta(days=5)).date()
+            _LOGGER.debug("Maximum forecast date calculated: %s", max_forecast_date)
+
+            # Process 3-hourly forecasts
+            forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
+            if forecast3h:
+                _LOGGER.debug("Processing 3-hourly forecast data.")
+                days = forecast3h[0].get("properties", {}).get("days", [])
+                for day in days:
+                    _LOGGER.debug("Processing day: %s", day)
+                    day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+
+                    if day_date > max_forecast_date:
+                        _LOGGER.debug("Skipping day %s as it is beyond the maximum forecast range.", day_date)
+                        continue
+
+                    timeline = day.get("timeline", [])
+                    _LOGGER.debug("Timeline for day %s: %s", day_date, timeline)
+
+                    morning_entry = next((entry for entry in timeline if "T06:00:00" in entry["valid"]), None)
+                    if morning_entry:
+                        _LOGGER.debug("Morning entry found: %s", morning_entry)
+                        twice_daily_forecasts.append({
+                            "datetime": datetime.strptime(morning_entry["valid"], "%Y-%m-%dT%H:%M:%S%z"),
+                            "temperature": float(morning_entry.get("t", 0)),
+                            "condition": CLOUD_CONDITION_MAP.get(morning_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        })
+
+                    evening_entry = next((entry for entry in timeline if "T18:00:00" in entry["valid"]), None)
+                    if evening_entry:
+                        _LOGGER.debug("Evening entry found: %s", evening_entry)
+                        twice_daily_forecasts.append({
+                            "datetime": datetime.strptime(evening_entry["valid"], "%Y-%m-%dT%H:%M:%S%z"),
+                            "temperature": float(evening_entry.get("t", 0)),
+                            "condition": CLOUD_CONDITION_MAP.get(evening_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        })
+
+            # Process 24-hourly forecasts
+            forecast24h = forecast_data.get("forecast24h", {}).get("features", [])
+            if forecast24h:
+                _LOGGER.debug("Processing 24-hourly forecast data.")
+                days = forecast24h[0].get("properties", {}).get("days", [])
+                for day in days:
+                    _LOGGER.debug("Processing day: %s", day)
+                    day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+
+                    if day_date > max_forecast_date:
+                        _LOGGER.debug("Skipping day %s as it is beyond the maximum forecast range.", day_date)
+                        continue
+
+                    morning_temp = day["timeline"][0].get("tnsyn")
+                    evening_temp = day["timeline"][0].get("txsyn")
+
+                    if morning_temp is not None:
+                        twice_daily_forecasts.append({
+                            "datetime": datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=6),
+                            "temperature": float(morning_temp),
+                            "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        })
+
+                    if evening_temp is not None:
+                        twice_daily_forecasts.append({
+                            "datetime": datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=18),
+                            "temperature": float(evening_temp),
+                            "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        })
+
+        except Exception as e:
+            _LOGGER.error("Error processing twice daily forecast: %s", e, exc_info=True)
+
+        _LOGGER.debug("Completed twice daily forecast processing: %s", twice_daily_forecasts)
+        return twice_daily_forecasts
+
+
 
     async def async_forecast_hourly(self):
         """Return the hourly forecast."""
@@ -440,6 +498,12 @@ class ArsoWeather(WeatherEntity):
     async def async_forecast_daily(self):
         """Return the daily forecast."""
         return self._daily_forecast
+        
+    async def async_forecast_twice_daily(self):
+        """Return the twice daily forecast."""
+        _LOGGER.debug("Returning twice daily forecast: %s", self._twice_daily_forecast)
+        return self._twice_daily_forecast
+
 
     def _map_condition(self, clouds_short_text):
         """Map ARSO cloud conditions to Home Assistant weather conditions."""
