@@ -4,11 +4,17 @@
 [![Maintainer][maintainer-shield]][maintainer]
 [![Home Assistant][homeassistant-shield]][homeassistant]
 [![HACS][hacs-shield]][hacs]
-[![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
-[![GitHub Sponsors][github-shield]][github]
+
+![Hassfest](https://img.shields.io/github/actions/workflow/status/andrejs2/slovenian_weather_integration/hassfest.yaml?branch=main&label=Hassfest&style=for-the-badge&logo=home-assistant)
+![HACS Validation](https://img.shields.io/github/actions/workflow/status/andrejs2/slovenian_weather_integration/validate.yaml?branch=main&label=HACS%20Validation&style=for-the-badge&logo=home-assistant)
 [![GitHub Release](https://img.shields.io/github/v/release/andrejs2/slovenian_weather_integration?style=for-the-badge)](https://github.com/andrejs2/slovenian_weather_integration/releases/tag/v1.0.0)
 
 ![Made in Slovenia](https://img.shields.io/badge/Made_in-Slovenia-005DA4?style=for-the-badge&logo=flag&logoColor=white)  
+
+[![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
+[![GitHub Sponsors][github-shield]][github]
+
+
 
 
 <div align="center">
@@ -393,7 +399,7 @@ Precipitation Data: Real-time precipitation may not always be available. But is 
 Forecast Availability: Ensure the selected location supports both 3 hour and daily forecasts.
 
 
-## Contributing
+## 🛠️ Contributing
 
 If you find any bugs or have feature requests, feel free to open an issue or submit a pull request on GitHub.
 
