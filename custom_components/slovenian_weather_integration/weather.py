@@ -307,10 +307,65 @@ class ArsoWeather(WeatherEntity):
         """Fetch new state data for the sensor and update the forecast."""
         _LOGGER.debug("Starting update for ARSO Weather: %s", self._location)
         try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        _LOGGER.debug("Data: %s", data)
+
+                        observation = data.get("observation", {}).get("features", [])[0].get("properties", {}).get("days", [])[0]["timeline"][0]
+
+                        try:
+                            self._attr_native_temperature = float(observation.get("t", 0))
+                            self._attr_humidity = float(observation.get("rh", 0))
+                            self._attr_native_pressure = float(observation.get("msl", 0))
+                            self._attr_native_wind_speed = float(observation.get("ff_val", 0))
+                            self._attr_wind_bearing = WIND_DIRECTION_MAP.get(observation.get("dd_shortText", ""), "")
+                            self._attr_native_wind_gust_speed = float(observation.get("ffmax_val", 0) or 0)
+
+                            clouds_icon = observation.get("clouds_icon_wwsyn_icon", "").lower()
+                            wwsyn_short = observation.get("wwsyn_shortText", "").lower()
+                            clouds_short = observation.get("clouds_shortText", "").lower()
+
+                            condition = clouds_icon or wwsyn_short or clouds_short
+
+                            if not condition:
+                                _LOGGER.warning("Missing condition data in observation: %s", observation)
+
+                            if condition == "jasno" and not self.is_daytime():
+                                self._attr_condition = "clear-night"
+                            else:
+                                self._attr_condition = CLOUD_CONDITION_MAP.get(condition, "unknown")
+
+                            _LOGGER.debug("Mapped weather condition: %s", self._attr_condition)
+                            self._attr_native_precipitation = 0  # No direct precipitation data in observation
+                        except (ValueError, KeyError) as e:
+                            _LOGGER.error("Error processing weather observation data: %s", e)
+            if self._station_code:
+                try:
+                    rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
+                    feed_content = await self._fetch_rss_feed(rss_url)
+                    if feed_content:
+                        
+                        feed = await asyncio.to_thread(feedparser.parse, feed_content)
+                        entry = feed.entries[0]
+                        details = self._extract_weather_details(entry)
+
+                        if 'native_dew_point' in details:
+                            self._attr_native_dew_point = float(details['native_dew_point'])
+                        if 'native_visibility' in details:
+                            self._attr_native_visibility = float(details['native_visibility'])
+                            self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
+                    else:
+                        _LOGGER.info(f"No RSS feed available for location {self._location}.")
+                except Exception as e:
+                    _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
+            else:
+                _LOGGER.info(f"No RSS feed available for location {self._location}.")
+            
             await self._fetch_forecasts()
-            _LOGGER.debug("Forecast update completed successfully for: %s", self._location)
         except Exception as e:
-            _LOGGER.error("Unhandled error during forecast update for %s: %s", self._location, e, exc_info=True)
+            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
 
     async def _fetch_forecasts(self):
         """Fetch daily, hourly, and simulated twice-daily forecast data."""
@@ -408,7 +463,7 @@ class ArsoWeather(WeatherEntity):
         return daily_forecasts[:11]  # Return 11 days
         
     def _process_twice_daily_forecast(self, forecast_data):
-        """Extract twice daily forecast using 3-hourly and 24-hourly data."""
+        """Extract twice daily forecast with templow and temperature values."""
         _LOGGER.debug("Starting twice daily forecast processing...")
         twice_daily_forecasts = []
 
@@ -425,69 +480,44 @@ class ArsoWeather(WeatherEntity):
                     continue
 
                 timeline = day.get("timeline", [])
-                sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
-                sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
 
-                morning_entry = next((entry for entry in timeline if "T06:00:00" in entry["valid"]), None)
-                if morning_entry:
-                    morning_time = datetime.fromisoformat(morning_entry["valid"]).astimezone(pytz.UTC)
-                    is_daytime = sunrise <= morning_time < sunset
-                    twice_daily_forecasts.append({
-                        "datetime": morning_time,
-                        "temperature": float(morning_entry.get("t", 0)),
-                        "condition": CLOUD_CONDITION_MAP.get(morning_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        "is_daytime": is_daytime,
-                    })
-
-                evening_entry = next((entry for entry in timeline if "T18:00:00" in entry["valid"]), None)
-                if evening_entry:
-                    evening_time = datetime.fromisoformat(evening_entry["valid"]).astimezone(pytz.UTC)
-                    is_daytime = sunrise <= evening_time < sunset
-                    twice_daily_forecasts.append({
-                        "datetime": evening_time,
-                        "temperature": float(evening_entry.get("t", 0)),
-                        "condition": CLOUD_CONDITION_MAP.get(evening_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        "is_daytime": is_daytime,
-                    })
-
-        forecast24h = forecast_data.get("forecast24h", {}).get("features", [])
-        if forecast24h:
-            _LOGGER.debug("Processing 24-hourly forecast data.")
-            days = forecast24h[0].get("properties", {}).get("days", [])
-            for day in days:
-                day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
-                if day_date > max_forecast_date:
-                    continue
-
-                sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
-                sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
-
-                morning_temp = day["timeline"][0].get("tnsyn")
-                evening_temp = day["timeline"][0].get("txsyn")
-
-                if morning_temp is not None:
+                # Jutranja napoved (6:00–12:00)
+                morning_entries = [
+                    entry for entry in timeline
+                    if datetime.fromisoformat(entry["valid"]).hour in range(6, 12)
+                ]
+                if morning_entries:
+                    morning_templow = min(float(entry.get("t", 0)) for entry in morning_entries)
+                    morning_temperature = max(float(entry.get("t", 0)) for entry in morning_entries)
                     morning_time = datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=6)
-                    is_daytime = sunrise <= morning_time < sunset
                     twice_daily_forecasts.append({
                         "datetime": morning_time,
-                        "temperature": float(morning_temp),
-                        "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        "is_daytime": is_daytime,
+                        "templow": morning_templow,
+                        "temperature": morning_temperature,
+                        "condition": CLOUD_CONDITION_MAP.get(morning_entries[0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        "is_daytime": True,  # Zjutraj je vedno dnevno obdobje
                     })
 
-                if evening_temp is not None:
+                # Večerna napoved (12:00–18:00)
+                evening_entries = [
+                    entry for entry in timeline
+                    if datetime.fromisoformat(entry["valid"]).hour in range(12, 18)
+                ]
+                if evening_entries:
+                    evening_templow = min(float(entry.get("t", 0)) for entry in evening_entries)
+                    evening_temperature = max(float(entry.get("t", 0)) for entry in evening_entries)
                     evening_time = datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=18)
-                    is_daytime = sunrise <= evening_time < sunset
                     twice_daily_forecasts.append({
                         "datetime": evening_time,
-                        "temperature": float(evening_temp),
-                        "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        "is_daytime": is_daytime,
+                        "templow": evening_templow,
+                        "temperature": evening_temperature,
+                        "condition": CLOUD_CONDITION_MAP.get(evening_entries[-1].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        "is_daytime": False,  # Zvečer je vedno nočno obdobje
                     })
 
         _LOGGER.debug("Completed twice daily forecast processing: %s", twice_daily_forecasts)
         return twice_daily_forecasts
-        
+
 
     async def async_forecast_hourly(self):
         """Return the hourly forecast."""
