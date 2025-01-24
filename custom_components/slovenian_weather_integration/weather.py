@@ -321,7 +321,10 @@ class ArsoWeather(WeatherEntity):
                             self._attr_native_pressure = float(observation.get("msl", 0))
                             self._attr_native_wind_speed = float(observation.get("ff_val", 0))
                             self._attr_wind_bearing = WIND_DIRECTION_MAP.get(observation.get("dd_shortText", ""), "")
-                            self._attr_native_wind_gust_speed = float(observation.get("ffmax_val", 0) or 0)
+
+                            # Dodano za sunke vetra
+                            gust_speed = observation.get("ffmax_val", None)  # Če `ffmax_val` ni na voljo, uporabimo None
+                            self._attr_native_wind_gust_speed = float(gust_speed) if gust_speed else 0  # Uporabimo 0, če podatkov ni
 
                             clouds_icon = observation.get("clouds_icon_wwsyn_icon", "").lower()
                             wwsyn_short = observation.get("wwsyn_shortText", "").lower()
@@ -341,31 +344,20 @@ class ArsoWeather(WeatherEntity):
                             self._attr_native_precipitation = 0  # No direct precipitation data in observation
                         except (ValueError, KeyError) as e:
                             _LOGGER.error("Error processing weather observation data: %s", e)
-            if self._station_code:
-                try:
-                    rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
-                    feed_content = await self._fetch_rss_feed(rss_url)
-                    if feed_content:
-                        
-                        feed = await asyncio.to_thread(feedparser.parse, feed_content)
-                        entry = feed.entries[0]
-                        details = self._extract_weather_details(entry)
 
-                        if 'native_dew_point' in details:
-                            self._attr_native_dew_point = float(details['native_dew_point'])
-                        if 'native_visibility' in details:
-                            self._attr_native_visibility = float(details['native_visibility'])
-                            self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
-                    else:
-                        _LOGGER.info(f"No RSS feed available for location {self._location}.")
-                except Exception as e:
-                    _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
-            else:
-                _LOGGER.info(f"No RSS feed available for location {self._location}.")
-            
             await self._fetch_forecasts()
         except Exception as e:
             _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
+
+
+            await self._fetch_forecasts()
+        except Exception as e:
+            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
+
+            await self._fetch_forecasts()
+        except Exception as e:
+            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
+
 
     async def _fetch_forecasts(self):
         """Fetch daily, hourly, and simulated twice-daily forecast data."""
@@ -394,76 +386,86 @@ class ArsoWeather(WeatherEntity):
         """Process the hourly forecast data."""
         hourly_forecasts = []
 
-        # Preverimo, ali forecast3h obstaja v podatkih
         forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
         if not forecast3h:
             _LOGGER.warning("No 3-hour forecast data available.")
             return hourly_forecasts
 
-        days = forecast3h[0].get("properties", {}).get("days", [])
-        for day in days:
-            sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
-            sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
-
+        for day in forecast3h[0].get("properties", {}).get("days", []):
             for entry in day.get("timeline", []):
                 forecast_time = datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC)
 
-                # Preverimo, ali je čas v dnevnem obdobju
-                is_daytime = sunrise <= forecast_time < sunset
+                # Prilagodi format datuma in ure
+                formatted_date = forecast_time.strftime("%A, %-d. %B")
+                formatted_time = forecast_time.strftime("%H:%M")
 
                 hourly_forecasts.append({
-                    "datetime": forecast_time,
+                    "datetime": forecast_time.isoformat(),  # ISO format za API
+                    "formatted_date": formatted_date,  # Dodano za prikaz datuma
+                    "formatted_time": formatted_time,  # Dodano za prikaz časa
                     "temperature": float(entry.get("t", 0)),
-                    "precipitation": float(entry.get("tp_acc", 0)),
-                    "wind_speed": float(entry.get("ff_val", 0)),
-                    "wind_bearing": entry.get("dd_shortText", ""),
                     "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                    "pressure": float(entry.get("msl", 0)),
-                    "is_daytime": is_daytime,
+                    "native_wind_speed": float(entry.get("ff_val", 0)),
+                    "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
+                    "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
                 })
 
-        _LOGGER.debug("Completed hourly forecast processing: %s", hourly_forecasts)
+        _LOGGER.debug("Processed Hourly Forecasts: %s", hourly_forecasts)
         return hourly_forecasts
+
+
 
     def _process_daily_forecast(self, forecast_data):
         """Process the daily forecast data."""
         daily_forecasts = []
 
-        
         for day in forecast_data["forecast24h"]["features"][0]["properties"]["days"]:
-            #
-            forecast_time = day["date"]
+            try:
+                # Datum napovedi
+                forecast_time = day["date"]
 
-            
-            precipitation = float(day["timeline"][0].get("tp_24h_acc", 0))
+                # Padavine
+                precipitation = float(day["timeline"][0].get("tp_24h_acc", 0))
 
-            
-            min_temp = float(day["timeline"][0].get("tnsyn", None))
-            max_temp = float(day["timeline"][0].get("txsyn", None))
+                # Temperature
+                min_temp = float(day["timeline"][0].get("tnsyn", 0))
+                max_temp = float(day["timeline"][0].get("txsyn", 0))
 
-            
-            wind_speed = float(day["timeline"][0].get("ff_val", 0))
-            wind_bearing = WIND_DIRECTION_MAP.get(day["timeline"][0].get("dd_shortText", ""), "")
-            condition = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower()
-            condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
+                # Veter
+                wind_speed = float(day["timeline"][0].get("ff_val", 0))
+                wind_bearing = WIND_DIRECTION_MAP.get(day["timeline"][0].get("dd_shortText", ""), "")
 
-            
-            daily_forecasts.append({
-                "datetime": forecast_time,
-                "temperature": max_temp,
-                "templow": min_temp,
-                "precipitation": precipitation,
-                "wind_speed": wind_speed,
-                "wind_bearing": wind_bearing,
-                "condition": condition_translated,
-                "pressure": float(day["timeline"][0].get("msl", 0)),
-            })
+                # Sunki vetra
+                gust_speed_raw = day["timeline"][0].get("ffmax_val", 0)
+                gust_speed = float(gust_speed_raw) if gust_speed_raw and gust_speed_raw.strip() != "" else 0
+
+                # Stanje vremena
+                condition = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower()
+                condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
+
+                # Dodaj v napoved
+                daily_forecasts.append({
+                    "datetime": forecast_time,
+                    "temperature": max_temp,
+                    "templow": min_temp,
+                    "precipitation": precipitation,
+                    "wind_speed": wind_speed,
+                    "native_wind_gust_speed": gust_speed,
+                    "wind_bearing": wind_bearing,
+                    "condition": condition_translated,
+                    "pressure": float(day["timeline"][0].get("msl", 0)),
+                })
+
+            except Exception as e:
+                _LOGGER.error("Error processing daily forecast for day %s: %s", day, e, exc_info=True)
 
         _LOGGER.debug("Processed Daily Forecasts: %s", daily_forecasts)
-        return daily_forecasts[:11]  # Return 11 days
+        return daily_forecasts[:11]  # Vrni največ 11 dni
+
+
         
     def _process_twice_daily_forecast(self, forecast_data):
-        """Extract twice daily forecast with templow and temperature values."""
+        """Extract twice daily forecast with templow, temperature, and wind gust speed."""
         _LOGGER.debug("Starting twice daily forecast processing...")
         twice_daily_forecasts = []
 
@@ -489,11 +491,13 @@ class ArsoWeather(WeatherEntity):
                 if morning_entries:
                     morning_templow = min(float(entry.get("t", 0)) for entry in morning_entries)
                     morning_temperature = max(float(entry.get("t", 0)) for entry in morning_entries)
+                    morning_gust_speed = max(float(entry.get("ffmax_val", 0) or 0) for entry in morning_entries)
                     morning_time = datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=6)
                     twice_daily_forecasts.append({
                         "datetime": morning_time,
                         "templow": morning_templow,
                         "temperature": morning_temperature,
+                        "native_wind_gust_speed": morning_gust_speed,
                         "condition": CLOUD_CONDITION_MAP.get(morning_entries[0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
                         "is_daytime": True,  # Zjutraj je vedno dnevno obdobje
                     })
@@ -506,17 +510,20 @@ class ArsoWeather(WeatherEntity):
                 if evening_entries:
                     evening_templow = min(float(entry.get("t", 0)) for entry in evening_entries)
                     evening_temperature = max(float(entry.get("t", 0)) for entry in evening_entries)
+                    evening_gust_speed = max(float(entry.get("ffmax_val", 0) or 0) for entry in evening_entries)
                     evening_time = datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=18)
                     twice_daily_forecasts.append({
                         "datetime": evening_time,
                         "templow": evening_templow,
                         "temperature": evening_temperature,
+                        "native_wind_gust_speed": evening_gust_speed,
                         "condition": CLOUD_CONDITION_MAP.get(evening_entries[-1].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
                         "is_daytime": False,  # Zvečer je vedno nočno obdobje
                     })
 
         _LOGGER.debug("Completed twice daily forecast processing: %s", twice_daily_forecasts)
         return twice_daily_forecasts
+
 
 
     async def async_forecast_hourly(self):
