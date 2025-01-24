@@ -341,35 +341,37 @@ class ArsoWeather(WeatherEntity):
         """Process the hourly forecast data."""
         hourly_forecasts = []
 
-        
-        for day in forecast_data["forecast3h"]["features"][0]["properties"]["days"]:
-            
-            for entry in day["timeline"]:
-                forecast_time = datetime.strptime(entry["valid"], "%Y-%m-%dT%H:%M:%S%z")
+        # Preverimo, ali forecast3h obstaja v podatkih
+        forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
+        if not forecast3h:
+            _LOGGER.warning("No 3-hour forecast data available.")
+            return hourly_forecasts
 
-                
-                precipitation = float(entry.get("tp_acc", 0))
-                temperature = float(entry.get("t", 0))
-                wind_speed = float(entry.get("ff_val", 0))
-                wind_bearing = WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), "")
+        days = forecast3h[0].get("properties", {}).get("days", [])
+        for day in days:
+            sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
+            sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
 
-                
-                clouds_icon = entry.get("clouds_icon_wwsyn_icon", "").lower()
-                condition = CLOUD_CONDITION_MAP.get(clouds_icon, "unknown")
+            for entry in day.get("timeline", []):
+                forecast_time = datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC)
 
-                
+                # Preverimo, ali je čas v dnevnem obdobju
+                is_daytime = sunrise <= forecast_time < sunset
+
                 hourly_forecasts.append({
                     "datetime": forecast_time,
-                    "temperature": temperature,
-                    "precipitation": precipitation,
-                    "wind_speed": wind_speed,
-                    "wind_bearing": wind_bearing,
-                    "condition": condition,
+                    "temperature": float(entry.get("t", 0)),
+                    "precipitation": float(entry.get("tp_acc", 0)),
+                    "wind_speed": float(entry.get("ff_val", 0)),
+                    "wind_bearing": entry.get("dd_shortText", ""),
+                    "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
                     "pressure": float(entry.get("msl", 0)),
+                    "is_daytime": is_daytime,
                 })
 
-        _LOGGER.debug("Processed Hourly Forecasts: %s", hourly_forecasts)
+        _LOGGER.debug("Completed hourly forecast processing: %s", hourly_forecasts)
         return hourly_forecasts
+
 
 
     def _process_daily_forecast(self, forecast_data):
@@ -414,82 +416,87 @@ class ArsoWeather(WeatherEntity):
         _LOGGER.debug("Starting twice daily forecast processing...")
         twice_daily_forecasts = []
 
-        try:
-            now = datetime.now(tz=pytz.UTC)
-            max_forecast_date = (now + timedelta(days=5)).date()
-            _LOGGER.debug("Maximum forecast date calculated: %s", max_forecast_date)
+        now = datetime.now(tz=pytz.UTC)
+        max_forecast_date = (now + timedelta(days=5)).date()
 
-            # Process 3-hourly forecasts
-            forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
-            if forecast3h:
-                _LOGGER.debug("Processing 3-hourly forecast data.")
-                days = forecast3h[0].get("properties", {}).get("days", [])
-                for day in days:
-                    _LOGGER.debug("Processing day: %s", day)
-                    day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+        # Obdelaj 3-urne napovedi
+        forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
+        if forecast3h:
+            _LOGGER.debug("Processing 3-hourly forecast data.")
+            days = forecast3h[0].get("properties", {}).get("days", [])
+            for day in days:
+                day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+                if day_date > max_forecast_date:
+                    continue
 
-                    if day_date > max_forecast_date:
-                        _LOGGER.debug("Skipping day %s as it is beyond the maximum forecast range.", day_date)
-                        continue
+                timeline = day.get("timeline", [])
+                sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
+                sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
 
-                    timeline = day.get("timeline", [])
-                    _LOGGER.debug("Timeline for day %s: %s", day_date, timeline)
+                # Jutranja napoved (6:00)
+                morning_entry = next((entry for entry in timeline if "T06:00:00" in entry["valid"]), None)
+                if morning_entry:
+                    morning_time = datetime.fromisoformat(morning_entry["valid"]).astimezone(pytz.UTC)
+                    is_daytime = sunrise <= morning_time < sunset
+                    twice_daily_forecasts.append({
+                        "datetime": morning_time,
+                        "temperature": float(morning_entry.get("t", 0)),
+                        "condition": CLOUD_CONDITION_MAP.get(morning_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        "is_daytime": is_daytime,
+                    })
 
-                    morning_entry = next((entry for entry in timeline if "T06:00:00" in entry["valid"]), None)
-                    if morning_entry:
-                        _LOGGER.debug("Morning entry found: %s", morning_entry)
-                        twice_daily_forecasts.append({
-                            "datetime": datetime.strptime(morning_entry["valid"], "%Y-%m-%dT%H:%M:%S%z"),
-                            "temperature": float(morning_entry.get("t", 0)),
-                            "condition": CLOUD_CONDITION_MAP.get(morning_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        })
+                # Večerna napoved (18:00)
+                evening_entry = next((entry for entry in timeline if "T18:00:00" in entry["valid"]), None)
+                if evening_entry:
+                    evening_time = datetime.fromisoformat(evening_entry["valid"]).astimezone(pytz.UTC)
+                    is_daytime = sunrise <= evening_time < sunset
+                    twice_daily_forecasts.append({
+                        "datetime": evening_time,
+                        "temperature": float(evening_entry.get("t", 0)),
+                        "condition": CLOUD_CONDITION_MAP.get(evening_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        "is_daytime": is_daytime,
+                    })
 
-                    evening_entry = next((entry for entry in timeline if "T18:00:00" in entry["valid"]), None)
-                    if evening_entry:
-                        _LOGGER.debug("Evening entry found: %s", evening_entry)
-                        twice_daily_forecasts.append({
-                            "datetime": datetime.strptime(evening_entry["valid"], "%Y-%m-%dT%H:%M:%S%z"),
-                            "temperature": float(evening_entry.get("t", 0)),
-                            "condition": CLOUD_CONDITION_MAP.get(evening_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        })
+        # Obdelaj 24-urne napovedi
+        forecast24h = forecast_data.get("forecast24h", {}).get("features", [])
+        if forecast24h:
+            _LOGGER.debug("Processing 24-hourly forecast data.")
+            days = forecast24h[0].get("properties", {}).get("days", [])
+            for day in days:
+                day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+                if day_date > max_forecast_date:
+                    continue
 
-            # Process 24-hourly forecasts
-            forecast24h = forecast_data.get("forecast24h", {}).get("features", [])
-            if forecast24h:
-                _LOGGER.debug("Processing 24-hourly forecast data.")
-                days = forecast24h[0].get("properties", {}).get("days", [])
-                for day in days:
-                    _LOGGER.debug("Processing day: %s", day)
-                    day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
+                sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
+                sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
 
-                    if day_date > max_forecast_date:
-                        _LOGGER.debug("Skipping day %s as it is beyond the maximum forecast range.", day_date)
-                        continue
+                # Jutranja (6:00) in večerna (18:00) napoved iz 24-urne napovedi
+                morning_temp = day["timeline"][0].get("tnsyn")
+                evening_temp = day["timeline"][0].get("txsyn")
 
-                    morning_temp = day["timeline"][0].get("tnsyn")
-                    evening_temp = day["timeline"][0].get("txsyn")
+                if morning_temp is not None:
+                    morning_time = datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=6)
+                    is_daytime = sunrise <= morning_time < sunset
+                    twice_daily_forecasts.append({
+                        "datetime": morning_time,
+                        "temperature": float(morning_temp),
+                        "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        "is_daytime": is_daytime,
+                    })
 
-                    if morning_temp is not None:
-                        twice_daily_forecasts.append({
-                            "datetime": datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=6),
-                            "temperature": float(morning_temp),
-                            "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        })
-
-                    if evening_temp is not None:
-                        twice_daily_forecasts.append({
-                            "datetime": datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=18),
-                            "temperature": float(evening_temp),
-                            "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        })
-
-        except Exception as e:
-            _LOGGER.error("Error processing twice daily forecast: %s", e, exc_info=True)
+                if evening_temp is not None:
+                    evening_time = datetime.combine(day_date, datetime.min.time(), tzinfo=pytz.UTC).replace(hour=18)
+                    is_daytime = sunrise <= evening_time < sunset
+                    twice_daily_forecasts.append({
+                        "datetime": evening_time,
+                        "temperature": float(evening_temp),
+                        "condition": CLOUD_CONDITION_MAP.get(day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                        "is_daytime": is_daytime,
+                    })
 
         _LOGGER.debug("Completed twice daily forecast processing: %s", twice_daily_forecasts)
         return twice_daily_forecasts
-
-
+        
 
     async def async_forecast_hourly(self):
         """Return the hourly forecast."""
