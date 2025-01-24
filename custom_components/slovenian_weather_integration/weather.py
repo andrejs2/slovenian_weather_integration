@@ -312,7 +312,6 @@ class ArsoWeather(WeatherEntity):
         except Exception as e:
             _LOGGER.error("Unhandled error during forecast update for %s: %s", self._location, e, exc_info=True)
 
-
     async def _fetch_forecasts(self):
         """Fetch daily, hourly, and simulated twice-daily forecast data."""
         _LOGGER.debug("Fetching forecast data for location: %s", self._location)
@@ -335,7 +334,6 @@ class ArsoWeather(WeatherEntity):
                         _LOGGER.warning("Failed to fetch forecast data. HTTP Status: %s", response.status)
         except Exception as e:
             _LOGGER.error("Error fetching forecast data for location %s: %s", self._location, e, exc_info=True)
-
 
     def _process_hourly_forecast(self, forecast_data):
         """Process the hourly forecast data."""
@@ -371,8 +369,6 @@ class ArsoWeather(WeatherEntity):
 
         _LOGGER.debug("Completed hourly forecast processing: %s", hourly_forecasts)
         return hourly_forecasts
-
-
 
     def _process_daily_forecast(self, forecast_data):
         """Process the daily forecast data."""
@@ -419,7 +415,6 @@ class ArsoWeather(WeatherEntity):
         now = datetime.now(tz=pytz.UTC)
         max_forecast_date = (now + timedelta(days=5)).date()
 
-        # Obdelaj 3-urne napovedi
         forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
         if forecast3h:
             _LOGGER.debug("Processing 3-hourly forecast data.")
@@ -433,7 +428,6 @@ class ArsoWeather(WeatherEntity):
                 sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
                 sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
 
-                # Jutranja napoved (6:00)
                 morning_entry = next((entry for entry in timeline if "T06:00:00" in entry["valid"]), None)
                 if morning_entry:
                     morning_time = datetime.fromisoformat(morning_entry["valid"]).astimezone(pytz.UTC)
@@ -445,7 +439,6 @@ class ArsoWeather(WeatherEntity):
                         "is_daytime": is_daytime,
                     })
 
-                # Večerna napoved (18:00)
                 evening_entry = next((entry for entry in timeline if "T18:00:00" in entry["valid"]), None)
                 if evening_entry:
                     evening_time = datetime.fromisoformat(evening_entry["valid"]).astimezone(pytz.UTC)
@@ -457,7 +450,6 @@ class ArsoWeather(WeatherEntity):
                         "is_daytime": is_daytime,
                     })
 
-        # Obdelaj 24-urne napovedi
         forecast24h = forecast_data.get("forecast24h", {}).get("features", [])
         if forecast24h:
             _LOGGER.debug("Processing 24-hourly forecast data.")
@@ -470,7 +462,6 @@ class ArsoWeather(WeatherEntity):
                 sunrise = datetime.fromisoformat(day["sunrise"]).astimezone(pytz.UTC)
                 sunset = datetime.fromisoformat(day["sunset"]).astimezone(pytz.UTC)
 
-                # Jutranja (6:00) in večerna (18:00) napoved iz 24-urne napovedi
                 morning_temp = day["timeline"][0].get("tnsyn")
                 evening_temp = day["timeline"][0].get("txsyn")
 
