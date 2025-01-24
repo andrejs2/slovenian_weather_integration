@@ -33,15 +33,37 @@
 **Slovenian Weather Integration** 🇸🇮 is a custom component for [Home Assistant](https://www.home-assistant.io/), leveraging real-time weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). It provides detailed weather information and forecasts tailored to users in Slovenia and neighboring regions.
 
 ---
+## Disclaimer ⚠️
 
-## ✨ Features
+This integration is not an official integration of the Slovenian Environmental Agency (Agencija RS za okolje). The source of the weather data is the national meteorological service of the Republic of Slovenia (Agencija RS za okolje).
 
-- **🌎 Real-Time Weather Conditions**: Temperature, humidity, wind speed, gusts, pressure, visibility, dew point, and weather conditions.
-- **⏱️ 3-Hour, Twice Daily & Daily Forecasts**: Up to 6 days of detailed forecasts, including precipitation and wind data.
-- ☂️ 24-hour Precipitation (Daily Forecasts): Shows accumulated precipitation for the day
-- **🎨 Cascading Logic for Weather Conditions**: Ensures accurate interpretation of ARSO's comprehensive weather data.
-- **🎯 Unique IDs**: Customize and edit entities directly in the Home Assistant UI.
-- **🎮 English Translations**: Slovenian cloud condition terms are translated into English for compatibility.
+---
+
+## Features 🌟
+
+### Current Weather
+- Displays current temperature, pressure, humidity, wind speed, and wind direction.
+- **NEW:** Added support for wind gust speed (`native_wind_gust_speed`).
+- Weather condition icons mapped to Home Assistant's standards.
+
+### Hourly Forecast
+- Provides forecasts for up to **6 days ahead**.
+- Includes temperature, weather conditions, wind speed, and wind gust speed.
+- **NEW:** Introduced `is_daytime` attribute to indicate whether the forecasted time is daytime or nighttime.
+
+### Twice Daily Forecast 🌅🌙
+- **NEW:** Added support for `twice_daily` forecasts (morning and evening).
+- Includes minimum (`templow`) and maximum (`temperature`) temperatures for morning and evening periods.
+- Combines data from 3-hourly and daily forecasts for better accuracy.
+- Weather conditions and `is_daytime` attribute supported.
+
+### Daily Forecast 🌤️
+- Provides forecasts for up to **10 days ahead**.
+- Includes:
+  - Maximum and minimum temperatures.
+  - 24-hour accumulated precipitation (`tp_24h_acc`).
+  - Wind speed and **NEW:** wind gust speed (`native_wind_gust_speed`).
+  - Weather condition and pressure.
 
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju1.JPG?raw=true)
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju2.JPG?raw=true)
