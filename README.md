@@ -37,7 +37,8 @@
 ## ✨ Features
 
 - **🌎 Real-Time Weather Conditions**: Temperature, humidity, wind speed, gusts, pressure, visibility, dew point, and weather conditions.
-- **⏱️ 3-Hour & Daily Forecasts**: Up to 6 days of detailed forecasts, including precipitation and wind data.
+- **⏱️ 3-Hour, Twice Daily & Daily Forecasts**: Up to 6 days of detailed forecasts, including precipitation and wind data.
+- ☂️ 24-hour Precipitation (Daily Forecasts): Shows accumulated precipitation for the day
 - **🎨 Cascading Logic for Weather Conditions**: Ensures accurate interpretation of ARSO's comprehensive weather data.
 - **🎯 Unique IDs**: Customize and edit entities directly in the Home Assistant UI.
 - **🎮 English Translations**: Slovenian cloud condition terms are translated into English for compatibility.
