@@ -84,3 +84,4 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required("location", default=self.config_entry.data.get("location")): str
             }),
         )
+        
