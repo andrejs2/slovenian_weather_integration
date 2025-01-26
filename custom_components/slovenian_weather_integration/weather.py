@@ -17,6 +17,7 @@ from .const import DOMAIN, RSS_STATION_CODES
 from homeassistant.const import UnitOfLength
 import asyncio
 from datetime import datetime, timedelta
+from homeassistant.util.dt import as_local
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,7 +85,9 @@ CLOUD_CONDITION_MAP = {
     "overcast_modra_day": "rainy",
     "overcast_heavysn_night": "snowy",
     "overcast_heavysn_day": "snowy",
-    
+    "overcast_modtssn_night": "lightning",
+    "overcast_modtssn_day": "lightning",
+
     # Partly cloudy and rainy conditions ('clouds_icon_wwsyn_icon')
     "partcloudy_night": "partlycloudy", 
     "partcloudy_day": "partlycloudy", 
@@ -146,6 +149,8 @@ CLOUD_CONDITION_MAP = {
     "prevcloudy_modtsra_night": "rainy",
     "prevcloudy_heavytsra_day": "rainy",
     "prevcloudy_heavytsra_night": "rainy",
+    "prevcloudy_modrasn_day": "snowy-rainy",
+    "prevcloudy_modrasn_night": "snowy-rainy",
 
     # Clear conditions
     "clear_night": "clear-night",
@@ -296,12 +301,26 @@ class ArsoWeather(WeatherEntity):
         attrs = {
             "location": self._location,
             "attribution": "Vir: Agencija RS za okolje",
+            "native_wind_gust_speed": self._attr_native_wind_gust_speed,  # Dodano
         }
         if self._attr_native_dew_point is not None:
             attrs["dew_point"] = self._attr_native_dew_point
         if self._attr_native_visibility is not None:
             attrs["visibility"] = self._attr_native_visibility
         return attrs
+
+    @property
+    def device_info(self):
+        """Return device information to group all related entities under one device."""
+        return {
+            "identifiers": {(DOMAIN, self._location)},
+            "name": f"ARSO Weather Station - {self._location.capitalize()}",
+            "manufacturer": "ARSO",
+            "model": "Weather Station",
+            "entry_type": "service",
+        }
+
+
 
     async def async_update(self):
         """Fetch new state data for the sensor and update the forecast."""
@@ -313,48 +332,33 @@ class ArsoWeather(WeatherEntity):
                         data = await response.json()
                         _LOGGER.debug("Data: %s", data)
 
-                        observation = data.get("observation", {}).get("features", [])[0].get("properties", {}).get("days", [])[0]["timeline"][0]
+                        # Pridobi prvo napoved iz forecast1h
+                        forecast1h = data.get("forecast1h", {}).get("features", [])
+                        if forecast1h:
+                            first_entry = forecast1h[0].get("properties", {}).get("days", [])[0]["timeline"][0]
 
-                        try:
-                            self._attr_native_temperature = float(observation.get("t", 0))
-                            self._attr_humidity = float(observation.get("rh", 0))
-                            self._attr_native_pressure = float(observation.get("msl", 0))
-                            self._attr_native_wind_speed = float(observation.get("ff_val", 0))
-                            self._attr_wind_bearing = WIND_DIRECTION_MAP.get(observation.get("dd_shortText", ""), "")
+                            self._attr_native_temperature = float(first_entry.get("t", 0))
+                            self._attr_humidity = float(first_entry.get("rh", 0))
+                            self._attr_native_pressure = float(first_entry.get("msl", 0))
+                            self._attr_native_wind_speed = float(first_entry.get("ff_val", 0))
+                            self._attr_native_wind_gust_speed = float(first_entry.get("ffmax_val", 0) or 0)
+                            self._attr_wind_bearing = WIND_DIRECTION_MAP.get(first_entry.get("dd_shortText", ""), "")
 
-                            # Dodano za sunke vetra
-                            gust_speed = observation.get("ffmax_val", None)  # Če `ffmax_val` ni na voljo, uporabimo None
-                            self._attr_native_wind_gust_speed = float(gust_speed) if gust_speed else 0  # Uporabimo 0, če podatkov ni
+                            condition = first_entry.get("clouds_icon_wwsyn_icon", "").lower()
+                            self._attr_condition = CLOUD_CONDITION_MAP.get(condition, "unknown")
 
-                            clouds_icon = observation.get("clouds_icon_wwsyn_icon", "").lower()
-                            wwsyn_short = observation.get("wwsyn_shortText", "").lower()
-                            clouds_short = observation.get("clouds_shortText", "").lower()
+                            _LOGGER.debug(
+                                "Updated current state from forecast1h - Temperature: %s, Condition: %s, Wind Gust Speed: %s",
+                                self._attr_native_temperature,
+                                self._attr_condition,
+                                self._attr_native_wind_gust_speed,
+                            )
+                        else:
+                            _LOGGER.warning("No forecast1h data available.")
 
-                            condition = clouds_icon or wwsyn_short or clouds_short
-
-                            if not condition:
-                                _LOGGER.warning("Missing condition data in observation: %s", observation)
-
-                            if condition == "jasno" and not self.is_daytime():
-                                self._attr_condition = "clear-night"
-                            else:
-                                self._attr_condition = CLOUD_CONDITION_MAP.get(condition, "unknown")
-
-                            _LOGGER.debug("Mapped weather condition: %s", self._attr_condition)
-                            self._attr_native_precipitation = 0  # No direct precipitation data in observation
-                        except (ValueError, KeyError) as e:
-                            _LOGGER.error("Error processing weather observation data: %s", e)
-
-            await self._fetch_forecasts()
-        except Exception as e:
-            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
-
-
-            await self._fetch_forecasts()
-        except Exception as e:
-            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
-
-            await self._fetch_forecasts()
+                        await self._fetch_forecasts()
+                    else:
+                        _LOGGER.warning("Failed to fetch weather data. HTTP Status: %s", response.status)
         except Exception as e:
             _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
 
@@ -386,31 +390,47 @@ class ArsoWeather(WeatherEntity):
         """Process the hourly forecast data."""
         hourly_forecasts = []
 
+        # Pridobi 1-urno napoved
+        forecast1h = forecast_data.get("forecast1h", {}).get("features", [])
+        if forecast1h:
+            for day in forecast1h[0].get("properties", {}).get("days", []):
+                for entry in day.get("timeline", []):
+                    forecast_time = as_local(datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC))
+                    if (forecast_time - datetime.now(pytz.UTC)).total_seconds() <= 24 * 3600:
+                        # Dodano logiranje za 1-urno napoved
+                        _LOGGER.debug("1h Forecast - UTC time: %s, Local time: %s, Temperature: %s", 
+                                    entry["valid"], forecast_time, entry.get("t"))
+
+                        hourly_forecasts.append({
+                            "datetime": forecast_time.isoformat(),
+                            "temperature": float(entry.get("t", 0)),
+                            "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                            "native_wind_speed": float(entry.get("ff_val", 0)),
+                            "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
+                            "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
+                        })
+
+        # Pridobi 3-urno napoved za preostale ure
         forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
-        if not forecast3h:
-            _LOGGER.warning("No 3-hour forecast data available.")
-            return hourly_forecasts
+        if forecast3h:
+            for day in forecast3h[0].get("properties", {}).get("days", []):
+                for entry in day.get("timeline", []):
+                    forecast_time = datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC)
+                    if (forecast_time - datetime.now(pytz.UTC)).total_seconds() > 24 * 3600:
+                        # Dodano logiranje za 3-urno napoved
+                        _LOGGER.debug("3h Forecast - UTC time: %s, Temperature: %s", 
+                                    entry["valid"], entry.get("t"))
 
-        for day in forecast3h[0].get("properties", {}).get("days", []):
-            for entry in day.get("timeline", []):
-                forecast_time = datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC)
+                        hourly_forecasts.append({
+                            "datetime": forecast_time.isoformat(),
+                            "temperature": float(entry.get("t", 0)),
+                            "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
+                            "native_wind_speed": float(entry.get("ff_val", 0)),
+                            "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
+                            "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
+                        })
 
-                # Prilagodi format datuma in ure
-                formatted_date = forecast_time.strftime("%A, %-d. %B")
-                formatted_time = forecast_time.strftime("%H:%M")
-
-                hourly_forecasts.append({
-                    "datetime": forecast_time.isoformat(),  # ISO format za API
-                    "formatted_date": formatted_date,  # Dodano za prikaz datuma
-                    "formatted_time": formatted_time,  # Dodano za prikaz časa
-                    "temperature": float(entry.get("t", 0)),
-                    "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                    "native_wind_speed": float(entry.get("ff_val", 0)),
-                    "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
-                    "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
-                })
-
-        _LOGGER.debug("Processed Hourly Forecasts: %s", hourly_forecasts)
+        _LOGGER.debug("Processed Hourly Forecasts (1h + 3h): %s", hourly_forecasts)
         return hourly_forecasts
 
 
