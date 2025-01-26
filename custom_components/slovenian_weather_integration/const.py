@@ -122,3 +122,14 @@ RSS_STATION_CODES = {
     "Zgornja Radovna": "observationAms_ZGORN-RAD",
     "Zgornja Sorica": "observationAms_ZGORN-SOR"
 }
+
+SENSOR_TYPES = {
+    "temperature": "Temperature", 
+    "humidity": "Humidity", 
+    "pressure": "Pressure", 
+    "snow_accumulation": "Snowfall",
+    "precipitation": "Rainfall", 
+    "cloud_base": "Cloud base height", 
+    "pressure_tendency": "Pressure Tendency",
+    "cloud_coverage": "Cloud Coverage",
+}
