@@ -7,6 +7,7 @@ from .helpers import async_remove_sensors
 from homeassistant.core import callback
 from .config_flow import OptionsFlowHandler
 import logging
+from homeassistant.config_entries import ConfigEntry, OptionsFlow
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,12 +21,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up ARSO Weather from a config entry."""
+    _LOGGER.debug("Setting up entry: %s", entry)
+    _LOGGER.debug("Entry options: %s", entry.options)
+
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
-    platforms = entry.data.get("platforms", DEFAULT_PLATFORMS)
+    platforms = entry.options.get("platforms", entry.data.get("platforms", DEFAULT_PLATFORMS))
+    _LOGGER.debug("Platforms to be loaded: %s", platforms)
+
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
 
     return True
+
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -55,31 +62,25 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-    platforms = entry.options.get("platforms", [])
+    platforms = entry.options.get("platforms", entry.data.get("platforms", []))
     current_platforms = entry.data.get("platforms", [])
-    
-    new_platforms = []
-    if "weather" in platforms:
-        new_platforms.append("weather")
-    if "sensor" in platforms:
-        new_platforms.append("sensor")
+    _LOGGER.debug("Update listener triggered for entry: %s", entry.entry_id)
+    _LOGGER.debug("Updated platforms: %s", platforms)
 
     # Unload removed platforms
     for platform in current_platforms:
-        if platform not in new_platforms:
+        if platform not in platforms:
             await hass.config_entries.async_forward_entry_unload(entry, platform)
 
     # Load newly added platforms
-    for platform in new_platforms:
+    for platform in platforms:
         if platform not in current_platforms:
             await hass.config_entries.async_forward_entry_setups(entry, [platform])
 
-    entry.data["platforms"] = new_platforms
+    hass.config_entries.async_update_entry(entry, options={"platforms": platforms})
 
-
-
+@staticmethod
 @callback
-def async_get_options_flow(config_entry: ConfigEntry):
-    """Return the options flow handler."""
+def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlowHandler:
+    """Create the options flow."""
     return OptionsFlowHandler(config_entry)
-
