@@ -2,10 +2,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers import config_validation as cv
-from .const import DOMAIN
-import voluptuous as vol
+from .const import DOMAIN, DEFAULT_PLATFORMS
+from .helpers import async_remove_sensors
+from homeassistant.core import callback
+from .config_flow import OptionsFlowHandler
+import logging
 
-# Define a configuration schema
+
+_LOGGER = logging.getLogger(__name__)
+
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -13,39 +18,65 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, {})
     return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up ARSO Weather from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
+    entry.async_on_unload(entry.add_update_listener(update_listener))
 
-    location = entry.data.get("location", "Ljubljana").lower().replace(" ", "_")
-    hass.data[DOMAIN][entry.entry_id] = {"location": location}
+    platforms = entry.data.get("platforms", DEFAULT_PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, platforms)
 
-    # Forward setup to weather and sensor platforms using `await`
-    await hass.config_entries.async_forward_entry_setups(entry, ["weather", "sensor"])
-
-    return True
-
-
-    # Setup weather and sensor platforms
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, "weather")
-    )
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, "sensor")
-    )
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload ARSO Weather config entry."""
-    unload_ok = await hass.config_entries.async_forward_entry_unload(entry, "weather")
-    unload_ok = unload_ok and await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+    platforms = entry.data.get("platforms", DEFAULT_PLATFORMS)
+    unload_ok = True
 
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+    if "sensor" in platforms:
+        _LOGGER.debug("Unloading sensors for entry: %s", entry.entry_id)
+        await async_remove_sensors(hass, entry)
 
+        try:
+            platform_unloaded = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+            if not platform_unloaded:
+                _LOGGER.warning("Sensor platform for entry %s was not fully unloaded", entry.entry_id)
+            unload_ok = unload_ok and platform_unloaded
+        except Exception as e:
+            _LOGGER.error("Error unloading sensor platform for entry %s: %s", entry.entry_id, e, exc_info=True)
+            unload_ok = False
+
+    # Remove data from hass
+    if unload_ok and not platforms:
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+
+    _LOGGER.debug("Entry unloaded: %s", entry.entry_id)
     return unload_ok
 
+
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-    """Handle options update."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    platforms = entry.options.get("platforms", [])
+    new_platforms = []
+
+    if entry.options.get("enable_weather", True):
+        new_platforms.append("weather")
+    if entry.options.get("enable_sensor", True):
+        new_platforms.append("sensor")
+
+    for platform in new_platforms:
+        if platform not in platforms:
+            await hass.config_entries.async_forward_entry_setups(entry, [platform])
+
+    for platform in platforms:
+        if platform not in new_platforms:
+            await hass.config_entries.async_forward_entry_unload(entry, platform)
+
+    entry.options["platforms"] = new_platforms
+
+
+
+@callback
+def async_get_options_flow(config_entry: ConfigEntry):
+    """Return the options flow handler."""
+    return OptionsFlowHandler(config_entry)
+
