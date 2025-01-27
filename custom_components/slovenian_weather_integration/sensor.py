@@ -4,8 +4,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.entity_registry import async_get
 from .const import DOMAIN
 from asyncio import sleep
+#from .sensor import async_remove_sensors
+from .helpers import async_remove_sensors  # Če je potrebno odstraniti platformo ali vse entitete
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +23,7 @@ SENSOR_TYPES = {
     "weather_phenomenon": ["Weather Phenomenon", None, "mdi:weather-partly-rainy", None],
     "snow_accumulation": ["Snowfall", "mm", "mdi:snowflake", None],
     "precipitation": ["Rainfall", "mm", "mdi:weather-rainy", None],
-    "cloud_base": ["Cloud Base Height", None, "mdi:cloud-outline", None],
+    "cloud_base": ["Cloud base height", None, "mdi:cloud-outline", None],
     "pressure_tendency": ["Pressure Tendency", None, "mdi:gauge", None],
     "cloud_coverage": ["Cloud Coverage", "%", "mdi:cloud", None],
 }
