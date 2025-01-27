@@ -112,6 +112,12 @@ class ArsoWeatherSensor(Entity):
             "entry_type": "service",
         }
 
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return whether the sensor should be enabled by default."""
+        enabled_by_default = ["temperature", "condition", "weather_phenomenon"]
+        return self._sensor_type in enabled_by_default 
+
     async def async_update(self):
         """Fetch data for the sensor."""
         # Preveri, ali je senzor med spremljanimi
