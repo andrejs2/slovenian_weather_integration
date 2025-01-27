@@ -10,6 +10,10 @@ from typing import Any, Dict
 from homeassistant.data_entry_flow import FlowResult
 from .helpers import async_remove_sensors
 
+from homeassistant import config_entries
+from homeassistant.helpers import selector
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -87,13 +91,19 @@ def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
         self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            platforms = []
+            if user_input.get("enable_weather"):
+                platforms.append("weather")
+            if user_input.get("enable_sensor"):
+                platforms.append("sensor")
+            
+            # Save platforms to options
+            return self.async_create_entry(title="", data={"platforms": platforms})
 
         platforms = self.config_entry.options.get("platforms", ["weather", "sensor"])
         schema = vol.Schema({
