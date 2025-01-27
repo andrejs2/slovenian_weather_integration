@@ -1,10 +1,9 @@
 {
-    "config": {
-        "title": "ARSO Weather",
+    "options": {
         "step": {
-            "user": {
-                "title": "Set up ARSO Weather",
-                "description": "Configure weather and sensor platforms.",
+            "init": {
+                "title": "ARSO Weather Options",
+                "description": "Modify the integration settings.",
                 "data": {
                     "enable_weather": "Enable Weather Platform",
                     "enable_sensor": "Enable Sensor Platform"
