@@ -8,9 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/andrejs2/slovenian_weather_integration/issues",
   "requirements": [],
-  "version": "1.3.0",
-  "translations": {
-      "en": "strings.json",
-      "sl": "strings.sl.json"
-  }
+  "version": "1.3.0"
 }
