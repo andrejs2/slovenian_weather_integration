@@ -56,22 +56,25 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     platforms = entry.options.get("platforms", [])
+    current_platforms = entry.data.get("platforms", [])
+    
     new_platforms = []
-
-    if entry.options.get("enable_weather", True):
+    if "weather" in platforms:
         new_platforms.append("weather")
-    if entry.options.get("enable_sensor", True):
+    if "sensor" in platforms:
         new_platforms.append("sensor")
 
-    for platform in new_platforms:
-        if platform not in platforms:
-            await hass.config_entries.async_forward_entry_setups(entry, [platform])
-
-    for platform in platforms:
+    # Unload removed platforms
+    for platform in current_platforms:
         if platform not in new_platforms:
             await hass.config_entries.async_forward_entry_unload(entry, platform)
 
-    entry.options["platforms"] = new_platforms
+    # Load newly added platforms
+    for platform in new_platforms:
+        if platform not in current_platforms:
+            await hass.config_entries.async_forward_entry_setups(entry, [platform])
+
+    entry.data["platforms"] = new_platforms
 
 
 
