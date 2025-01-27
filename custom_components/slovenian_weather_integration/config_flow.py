@@ -90,25 +90,49 @@ def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
     return OptionsFlowHandler(config_entry)
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle the options flow for ARSO Weather."""
+
     def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
         self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
+        """Handle the options menu."""
+        _LOGGER.debug("Options flow initialized with options: %s", self.config_entry.options)
+
         if user_input is not None:
+            _LOGGER.debug("User input received: %s", user_input)
+
+            # Update config entry with the selected options
             platforms = []
             if user_input.get("enable_weather"):
                 platforms.append("weather")
             if user_input.get("enable_sensor"):
                 platforms.append("sensor")
-            
-            # Save platforms to options
-            return self.async_create_entry(title="", data={"platforms": platforms})
 
-        platforms = self.config_entry.options.get("platforms", ["weather", "sensor"])
+            # Update the config entry options
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options={"platforms": platforms}
+            )
+            _LOGGER.debug("Updated platforms: %s", platforms)
+
+            # Notify the user that changes were saved
+            return self.async_create_entry(title="", data={})
+
+        # Default options from the current config_entry
+        current_options = self.config_entry.options.get("platforms", ["weather", "sensor"])
+        _LOGGER.debug("Current options: %s", current_options)
+
+        # Use suggested values in the form schema
         schema = vol.Schema({
-            vol.Optional("enable_weather", default="weather" in platforms): bool,
-            vol.Optional("enable_sensor", default="sensor" in platforms): bool,
+            vol.Optional("enable_weather", default="weather" in current_options): bool,
+            vol.Optional("enable_sensor", default="sensor" in current_options): bool,
         })
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        _LOGGER.debug("Generated options schema: %s", schema)
+
+        # Display the form to the user
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema
+        )
