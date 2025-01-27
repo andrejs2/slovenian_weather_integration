@@ -1,0 +1,31 @@
+{
+    "config": {
+        "title": "ARSO Vreme",
+        "step": {
+            "user": {
+                "title": "Nastavite ARSO Vreme",
+                "description": "Konfigurirajte platforme za vreme in senzorje.",
+                "data": {
+                    "enable_weather": "Omogoči platformo za vreme",
+                    "enable_sensor": "Omogoči platformo za senzorje"
+                }
+            }
+        },
+        "error": {
+            "location_exists": "Lokacija že obstaja.",
+            "cannot_fetch_locations": "Ni mogoče pridobiti lokacij s strežnika."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Možnosti ARSO Vreme",
+                "description": "Spremenite nastavitve za integracijo ARSO Vreme.",
+                "data": {
+                    "enable_weather": "Omogoči platformo za vreme",
+                    "enable_sensor": "Omogoči platformo za senzorje"
+                }
+            }
+        }
+    }
+}
