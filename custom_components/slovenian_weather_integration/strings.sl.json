@@ -1,0 +1,14 @@
+{
+  "options": {
+    "step": {
+      "init": {
+        "title": "Možnosti ARSO Vreme",
+        "description": "Spremenite nastavitve za integracijo ARSO Vreme.",
+        "data": {
+          "enable_weather": "Omogoči platformo za vreme",
+          "enable_sensor": "Omogoči platformo za senzorje"
+        }
+      }
+    }
+  }
+}
