@@ -39,31 +39,22 @@ This integration is not an official integration of the Slovenian Environmental A
 
 ---
 
-## Features 🌟
+## ✨ Features
 
-### Current Weather
-- Displays current temperature, pressure, humidity, wind speed, and wind direction.
-- **NEW:** Added support for wind gust speed (`native_wind_gust_speed`).
-- Weather condition icons mapped to Home Assistant's standards.
+- 🌎 Real-Time Weather Conditions: Temperature, humidity, wind speed, gusts, pressure, visibility, dew point, and weather conditions.
+- ⏱️ 3-Hour, Daily & Twice Daily Forecasts: Up to 5 days of detailed forecasts, including precipitation and wind data.
+- 🔤 Twice Daily Forecasts:
+  - Includes forecasts for 6:00 (morning) and 18:00 (evening).
+  - Combines data from 3-hourly and 24-hourly forecasts.
+  - Includes the is_daytime attribute to indicate if the forecast represents daytime (true) or nighttime (false).
+- 🔠 Hourly Forecasts with Daytime Indicator:
+  - Hourly forecasts now include the is_daytime attribute for better clarity.
+- ☂️ 24-hour Precipitation (Daily Forecasts): Shows accumulated precipitation for the day.
+- 🎨 Cascading Logic for Weather Conditions: Ensures accurate interpretation of ARSO's comprehensive weather data.
+- 🔍 Unique IDs: Customize and edit entities directly in the Home Assistant UI.
+- 🎮 English Translations: Slovenian cloud condition terms are translated into English for compatibility.
 
-### Hourly Forecast
-- Provides forecasts for up to **6 days ahead**.
-- Includes temperature, weather conditions, wind speed, and wind gust speed.
-- **NEW:** Introduced `is_daytime` attribute to indicate whether the forecasted time is daytime or nighttime.
-
-### Twice Daily Forecast 🌅🌙
-- **NEW:** Added support for `twice_daily` forecasts (morning and evening).
-- Includes minimum (`templow`) and maximum (`temperature`) temperatures for morning and evening periods.
-- Combines data from 3-hourly and daily forecasts for better accuracy.
-- Weather conditions and `is_daytime` attribute supported.
-
-### Daily Forecast 🌤️
-- Provides forecasts for up to **10 days ahead**.
-- Includes:
-  - Maximum and minimum temperatures.
-  - 24-hour accumulated precipitation (`tp_24h_acc`).
-  - Wind speed and **NEW:** wind gust speed (`native_wind_gust_speed`).
-  - Weather condition and pressure.
+   
 
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju1.JPG?raw=true)
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju2.JPG?raw=true)
@@ -113,6 +104,7 @@ This integration is not an official integration of the Slovenian Environmental A
 - **Humidity (%)**
 - **Pressure (hPa)**
 - **Wind Speed (km/h)**
+- **Wind Gust Speed (km/h)**
 - **Dew Point** (current weather only)
 - **Visibility (km)** (current weather only)
 - **Precipitation (mm)** (forecasts only)
@@ -425,14 +417,15 @@ Precipitation Data: Real-time precipitation may not always be available. But is 
 Forecast Availability: Ensure the selected location supports both 3 hour and daily forecasts.
 
 
-## 🛠️ Contributing
+## 🔧 Contributing
 
 If you find any bugs or have feature requests, feel free to open an issue or submit a pull request on GitHub.
 
 ## ⭐ Star this repository
+
 Help other Home Assistant users find this integration by starring this repository. Click ⭐ Star on the top right of the GitHub page.
 
-## Support my work
+## 🍵 Support my work
 Do you enjoy using this Home Assistant integration? Then consider supporting my work using one of the following platforms, your donation is greatly appreciated and keeps me motivated:
 
 <a href="https://www.buymeacoffee.com/andrejs2" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
