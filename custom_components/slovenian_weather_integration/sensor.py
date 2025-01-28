@@ -7,8 +7,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_registry import async_get
 from .const import DOMAIN
 from asyncio import sleep
-#from .sensor import async_remove_sensors
-from .helpers import async_remove_sensors  # Če je potrebno odstraniti platformo ali vse entitete
+from .helpers import async_remove_sensors
 from urllib.parse import quote
 
 _LOGGER = logging.getLogger(__name__)
@@ -158,7 +157,6 @@ class ArsoWeatherSensor(Entity):
                         self._state = None
                         return
 
-                    # Get the first day's data
                     first_day = forecast1h[0]
                     timeline = first_day.get("timeline", [])
 
@@ -195,7 +193,7 @@ class ArsoWeatherSensor(Entity):
                 self._state = None
 
         else:
-            # Fetch data from the weather entity for other sensors
+           
             formatted_location = self._location.lower()
             formatted_location = formatted_location.replace(" ", "_")
             formatted_location = formatted_location.replace("č", "c").replace("š", "s").replace("ž", "z")
