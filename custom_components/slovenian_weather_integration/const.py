@@ -125,11 +125,11 @@ RSS_STATION_CODES = {
 }
 
 SENSOR_TYPES = {
-    "temperature": "Temperature",  # Temperatura v °C
-    "humidity": "Humidity",  # Vlažnost v %
-    "pressure": "Pressure",  # Tlak v hPa
-    "snow_accumulation": "Snežne padavine",  # Akumulacija snega (mm)
-    "precipitation": "Padavine",  # Padavine (mm)
-    "cloud_base": "Višina oblačnosti",  # Kratek opis višine spodnje meje oblakov
-    "pressure_tendency": "Tendenca tlaka",  # Kratek opis trenda tlaka
+    "temperature": "Temperature",  
+    "humidity": "Humidity",  
+    "pressure": "Pressure",  
+    "snow_accumulation": "Snowfall",
+    "precipitation": "Rainfall", 
+    "cloud_base": "Cloud Base", 
+    "pressure_tendency": "Pressure Tendency", 
 }
