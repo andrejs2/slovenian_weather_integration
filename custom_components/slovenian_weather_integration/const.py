@@ -1,5 +1,6 @@
 DOMAIN = "slovenian_weather_integration"
 DEFAULT_NAME = "ARSO Weather Integration"
+DEFAULT_PLATFORMS = ["weather", "sensor"]  # Privzeto vključene platforme
 API_URL = "https://vreme.arso.gov.si/api/1.0/location/"
 LOCATIONS_URL = "https://vreme.arso.gov.si/uploads/probase/www/fproduct/json/sl/locations.json"
 
@@ -124,12 +125,11 @@ RSS_STATION_CODES = {
 }
 
 SENSOR_TYPES = {
-    "temperature": "Temperature", 
-    "humidity": "Humidity", 
-    "pressure": "Pressure", 
+    "temperature": "Temperature",  
+    "humidity": "Humidity",  
+    "pressure": "Pressure",  
     "snow_accumulation": "Snowfall",
     "precipitation": "Rainfall", 
-    "cloud_base": "Cloud base height", 
-    "pressure_tendency": "Pressure Tendency",
-    "cloud_coverage": "Cloud Coverage",
+    "cloud_base": "Cloud Base", 
+    "pressure_tendency": "Pressure Tendency", 
 }
