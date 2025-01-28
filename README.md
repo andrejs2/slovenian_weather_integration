@@ -48,7 +48,7 @@ Apologies for any inconvenience caused, and thank you for your understanding!
 
 ### Current Weather
 - Displays current temperature, pressure, humidity, wind speed, wind direction and visibility.
-- **NEW:** Added support for wind gust speed (`native_wind_gust_speed`), dew point (where ARSO provides data) and visibility.
+- **NEW:** Added support for wind gust speed, dew point (where ARSO provides data) and visibility.
 - **NEW:** Sensor entities added for current weather.
 - **NEW:** Weather condition icons mapped to Home Assistant's standards.
 
