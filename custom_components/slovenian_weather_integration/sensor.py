@@ -7,8 +7,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_registry import async_get
 from .const import DOMAIN
 from asyncio import sleep
-#from .sensor import async_remove_sensors
-from .helpers import async_remove_sensors  # Če je potrebno odstraniti platformo ali vse entitete
+from .helpers import async_remove_sensors
 from urllib.parse import quote
 
 _LOGGER = logging.getLogger(__name__)
@@ -196,7 +195,7 @@ class ArsoWeatherSensor(Entity):
             formatted_location = formatted_location.replace(" ", "_")
             formatted_location = formatted_location.replace("č", "c").replace("š", "s").replace("ž", "z")
 
-            for _ in range(5):  # Poskusi največ 5-krat
+            for _ in range(5): 
                 weather_entity = self.hass.states.get(f"weather.arso_vreme_{formatted_location}")
 
                 if weather_entity:
@@ -215,9 +214,8 @@ class ArsoWeatherSensor(Entity):
                     _LOGGER.debug(
                         "Weather entity weather.arso_vreme_%s not found. Retrying...", formatted_location
                     )
-                    await sleep(2)  # Počakaj 2 sekundi, preden poskusiš znova
+                    await sleep(2)
 
-            # Če entiteta še vedno ne obstaja po 5 poskusih
             _LOGGER.warning(
                 "Weather entity weather.arso_vreme_%s not found after retries.", formatted_location
             )

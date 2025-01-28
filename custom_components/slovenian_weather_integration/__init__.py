@@ -34,26 +34,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     hass.data[DOMAIN][config_entry.entry_id] = {}
 
-    # Nastavitev za platforme (senzorji in vremenske postaje)
-    platforms = config_entry.data.get("platforms", DEFAULT_PLATFORMS)
-
-    for platform in platforms:
-        try:
-            # Popravek: Uporabi `await` za asinhrono nastavitev platform
-            await hass.config_entries.async_forward_entry_setup(config_entry, platform)
-        except Exception as e:
-            _LOGGER.error(
-                "Error setting up platform %s for entry %s: %s",
-                platform,
-                config_entry.entry_id,
-                e,
-                exc_info=True,
-            )
-            return False
+    platforms = ["sensor", "weather"]
+    try:
+        await hass.config_entries.async_forward_entry_setups(config_entry, platforms)
+    except Exception as e:
+        _LOGGER.error(f"Failed to set up platforms for {config_entry.title}: {e}")
+        return False
 
     return True
-
-
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload ARSO Weather config entry."""
@@ -71,7 +59,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Error unloading platform %s for entry %s: %s", platform, entry.entry_id, e, exc_info=True)
             unload_ok = False
 
-    # Remove entry data if unload was successful
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
         _LOGGER.debug("Entry unloaded successfully: %s", entry.entry_id)
@@ -80,19 +67,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return unload_ok
 
-
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     platforms = entry.options.get("platforms", entry.data.get("platforms", []))
     current_platforms = entry.data.get("platforms", [])
     _LOGGER.debug("Update listener triggered for entry: %s", entry.entry_id)
     _LOGGER.debug("Updated platforms: %s", platforms)
 
-    # Unload removed platforms
     for platform in current_platforms:
         if platform not in platforms:
             await hass.config_entries.async_forward_entry_unload(entry, platform)
 
-    # Load newly added platforms
     for platform in platforms:
         if platform not in current_platforms:
             await hass.config_entries.async_forward_entry_setups(entry, [platform])

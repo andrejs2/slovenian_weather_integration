@@ -42,14 +42,14 @@ This integration is not an official integration of the Slovenian Environmental A
 ## Features 🌟
 
 ### Current Weather
-- Displays current temperature, pressure, humidity, wind speed, and wind direction.
+- Displays current temperature, pressure, humidity, wind speed, wind direction and visibility.
 - **NEW:** Added support for wind gust speed (`native_wind_gust_speed`), dew point (where ARSO provides data) and visibility.
-- Sensor entities added for current weather.
-- Weather condition icons mapped to Home Assistant's standards.
+- **NEW:** Sensor entities added for current weather.
+- **NEW:** Weather condition icons mapped to Home Assistant's standards.
 
 ### Hourly Forecast
 - Provides forecasts for up to **6 days ahead**.
-- Includes temperature, weather conditions, wind speed, and wind gust speed.
+- Includes temperature, weather conditions, wind speed, wind bearing and wind gust speed.
 - **NEW:** Introduced `is_daytime` attribute to indicate whether the forecasted time is daytime or nighttime.
 
 ### Twice Daily Forecast 🌅🌙
@@ -66,11 +66,14 @@ This integration is not an official integration of the Slovenian Environmental A
   - Wind speed and **NEW:** wind gust speed (`native_wind_gust_speed`).
   - Weather condition and pressure.
 
+
+
+
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju1.JPG?raw=true)
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju2.JPG?raw=true)
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika3.JPG?raw=true)
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika4.JPG?raw=true)
-
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika5.JPG?raw=true)
 ---
 
 ## ⚙️ Installation
@@ -82,13 +85,23 @@ This integration is not an official integration of the Slovenian Environmental A
 
 ![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_1.PNG?raw=true)
 
+
+
 ![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_2.PNG?raw=true)
+
+
 
 ![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_3.PNG?raw=true)
 
+
+
 ![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_4.PNG?raw=true)
 
+
+
 ![Installation Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika_5.PNG?raw=true)
+
+
 
 
 ### ⚡ Manual Installation
@@ -149,6 +162,8 @@ This integration requires selecting a location (`Title` column) from table below
 ****You can configure multiple locations.****
 
 - **Location**: Choose a location in Slovenia or a neighboring country including BIH to display weather data from.
+
+### Locations providing data from unmanned (automatic) weather stations (observationAms) have limited scope of weather data. If you get sensor state `unknown` it's mostly because of limited weather data from the station.
 
 |ID          |Parent ID             |Country|Title                             |Latitude|Longitude|
 |------------|----------------------|-------|----------------------------------|--------|---------|
@@ -331,8 +346,7 @@ The integration will automatically pull the weather data and forecasts for the s
 
 ## Data Source
 
-The real-time weather observations are retrieved from the observation section of the ARSO.
-3 Hour and daily weather forecasts are retrieved from the forecast3h and forecast24h sections of the ARSO.
+The real-time weather observations are retrieved from the observation section of the Agencija RS za okolje.
 
 ## Supported Features
 
@@ -341,11 +355,11 @@ The real-time weather observations are retrieved from the observation section of
     Pressure (hPa)
     Wind Speed (km/h)
     Cloud Conditions (translated to Home Assistant-compatible terms)
-    Daily and Hourly Forecasts
-    Dew point ---> only in current weather
+    Daily, Twice-Daily and Hourly Forecasts
+    Dew point ---> only in current weather and with limited number of weather stations
     Wind gust speed (km/h)
-    Visibility (km) ---> only in current weather
-    Precipitation (mm)   ---> only in forecasts
+    Visibility (km) ---> only in current weather and with limited number of weather stations
+    Precipitation (mm)   ---> only in forecasts 
     Wind Gust Speed (km/h) ---> only in forecasts
 
 ## State attributes
@@ -363,7 +377,6 @@ pressure: 1013
 ```
 
 ## Weather forecasts are not part of the entity's state, they're instead made available by a separate API. 
-The integration implements two of the async methods `async_forecast_daily`, `async_forecast_hourly`.
 
 ## Updating weather forecast(s) - Action `weather.get_forecasts `
 
@@ -392,6 +405,8 @@ template:
         unit_of_measurement: °C
         device_class: temperature
 ```
+
+
 If you wish to create a `sensor` (for instance a temperature sensor for Ljubljana) from your weather entity, you can use a template:
 ```
 - sensor:
@@ -404,6 +419,8 @@ If you wish to create a `sensor` (for instance a temperature sensor for Ljubljan
 After you restart HA or reload configuration of your HA instance, you get sensor like this:
 
 ![alt text](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/temp_arso_lj.JPG?raw=true)
+
+## As of version 1.3.0, the ARSO Weather integration includes a sensor service as part of the integration, but with separate entities. This means you now get 15 sensors providing current weather data for the selected location. This makes working with weather data much easier! 😊
 
 ## Unique ID Support
 
