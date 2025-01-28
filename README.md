@@ -43,7 +43,8 @@ This integration is not an official integration of the Slovenian Environmental A
 
 ### Current Weather
 - Displays current temperature, pressure, humidity, wind speed, and wind direction.
-- **NEW:** Added support for wind gust speed (`native_wind_gust_speed`).
+- **NEW:** Added support for wind gust speed (`native_wind_gust_speed`), dew point (where ARSO provides data) and visibility.
+- Sensor entities added for current weather.
 - Weather condition icons mapped to Home Assistant's standards.
 
 ### Hourly Forecast
@@ -67,8 +68,8 @@ This integration is not an official integration of the Slovenian Environmental A
 
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju1.JPG?raw=true)
 ![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju2.JPG?raw=true)
-![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju3.JPG?raw=true)
-![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/lju4.JPG?raw=true)
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika3.JPG?raw=true)
+![Weather Preview](https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/Zajetaslika4.JPG?raw=true)
 
 ---
 
