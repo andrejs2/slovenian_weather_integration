@@ -1,0 +1,14 @@
+{
+    "options": {
+        "step": {
+            "init": {
+                "title": "ARSO Weather Options",
+                "description": "Modify the integration settings.",
+                "data": {
+                    "enable_weather": "Enable Weather Platform",
+                    "enable_sensor": "Enable Sensor Platform"
+                }
+            }
+        }
+    }
+}
