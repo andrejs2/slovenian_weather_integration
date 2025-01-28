@@ -136,3 +136,4 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=schema
         )
+
