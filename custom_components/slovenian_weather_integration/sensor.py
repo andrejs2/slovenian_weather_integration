@@ -7,7 +7,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_registry import async_get
 from .const import DOMAIN
 from asyncio import sleep
-from .helpers import async_remove_sensors
+#from .sensor import async_remove_sensors
+from .helpers import async_remove_sensors  # Če je potrebno odstraniti platformo ali vse entitete
 from urllib.parse import quote
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +27,8 @@ SENSOR_TYPES = {
     "cloud_base": ["Cloud base height", None, "mdi:cloud-outline", None],
     "pressure_tendency": ["Pressure Tendency", None, "mdi:gauge", None],
     "cloud_coverage": ["Cloud Coverage", "%", "mdi:cloud", None],
+    "dew_point": ["Dew Point", "°C", "mdi:thermometer", None],
+    "visibility": ["Visibility", "km", "mdi:eye", None],
 }
 
 CLOUD_COVERAGE_MAP = {
@@ -114,7 +117,7 @@ class ArsoWeatherSensor(Entity):
         """Return whether the sensor should be enabled by default."""
         enabled_by_default = ["temperature", "condition", "weather_phenomenon"]
         return self._sensor_type in enabled_by_default 
-
+#zadnja
     async def async_update(self):
         """Fetch data for the sensor."""
         if self._sensor_type not in self._monitored_conditions:
@@ -122,10 +125,11 @@ class ArsoWeatherSensor(Entity):
             return
 
         session = async_get_clientsession(self._hass)
-        encoded_location = quote(self._location)
-        api_url = f"https://vreme.arso.gov.si/api/1.0/location/?location={encoded_location}"
 
-        _LOGGER.debug("Fetching data for %s from %s", self._location, api_url)
+        # Kodiranje lokacije za API klic
+        encoded_location = quote(self._location, safe="")
+
+        api_url = f"https://vreme.arso.gov.si/api/1.0/location/?location={encoded_location}"
 
         if self._sensor_type in [
             "weather_phenomenon",
@@ -139,27 +143,22 @@ class ArsoWeatherSensor(Entity):
             try:
                 async with session.get(api_url) as response:
                     if response.status != 200:
-                        _LOGGER.warning("Failed to fetch data for %s: HTTP %s", self._location, response.status)
+                        _LOGGER.warning(
+                            "Failed to fetch data for %s: HTTP %s", self._location, response.status
+                        )
                         self._state = None
                         return
 
                     data = await response.json()
-                    forecast1h_data = data.get("forecast1h", {}).get("features", [])
-                    
-                    if not forecast1h_data:
-                        _LOGGER.warning("No forecast1h data available for %s", self._location)
-                        self._state = None
-                        return
-
-                    forecast1h = forecast1h_data[0].get("properties", {}).get("days", [])
+                    forecast1h = data.get("forecast1h", {}).get("features", [])[0].get("properties", {}).get("days", [])
                     if not forecast1h:
-                        _LOGGER.warning("No daily forecast data available for %s", self._location)
+                        _LOGGER.warning("No forecast data available for %s", self._location)
                         self._state = None
                         return
 
+                    # Pridobi podatke za prvi dan
                     first_day = forecast1h[0]
                     timeline = first_day.get("timeline", [])
-
                     if not timeline:
                         _LOGGER.warning("No timeline data available for %s", self._location)
                         self._state = None
@@ -167,6 +166,7 @@ class ArsoWeatherSensor(Entity):
 
                     current_forecast = timeline[0]
 
+                    # Posodobi stanje glede na tip senzorja
                     if self._sensor_type == "weather_phenomenon":
                         self._state = current_forecast.get("clouds_shortText_wwsyn_shortText", None)
                     elif self._sensor_type == "condition":
@@ -186,40 +186,40 @@ class ArsoWeatherSensor(Entity):
                         _LOGGER.warning("Unknown sensor type: %s", self._sensor_type)
                         self._state = None
 
-                    _LOGGER.debug("Updated %s for %s: %s", self._sensor_type, self._location, self._state)
-
             except Exception as e:
-                _LOGGER.error("Error fetching data for %s: %s", self._location, e, exc_info=True)
+                _LOGGER.error("Error fetching data for %s: %s", self._location, e)
                 self._state = None
 
         else:
-           
+            # Formatiranje lokacije za entiteto v Home Assistant
             formatted_location = self._location.lower()
             formatted_location = formatted_location.replace(" ", "_")
             formatted_location = formatted_location.replace("č", "c").replace("š", "s").replace("ž", "z")
 
-            max_retries = 5
-
-            for attempt in range(max_retries):
+            for _ in range(5):  # Poskusi največ 5-krat
                 weather_entity = self.hass.states.get(f"weather.arso_vreme_{formatted_location}")
-                
+
                 if weather_entity:
-                    break
+                    attributes = weather_entity.attributes
+                    if self._sensor_type in attributes:
+                        self._state = attributes[self._sensor_type]
+                    else:
+                        self._state = None
+                        _LOGGER.warning(
+                            "Attribute '%s' not found in weather entity weather.arso_vreme_%s",
+                            self._sensor_type,
+                            self._location,
+                        )
+                    return
+                else:
+                    _LOGGER.debug(
+                        "Weather entity weather.arso_vreme_%s not found. Retrying...", formatted_location
+                    )
+                    await sleep(2)  # Počakaj 2 sekundi, preden poskusiš znova
 
-                _LOGGER.debug("Waiting for weather entity to be available (%d/%d) - %s", attempt + 1, max_retries, formatted_location)
-                await sleep(2)
-
-            if not weather_entity:
-                _LOGGER.warning("Weather entity weather.arso_vreme_%s not found after retries.", formatted_location)
-                self._state = None
-                return
-
-            attributes = weather_entity.attributes
-            if self._sensor_type in attributes:
-                self._state = attributes[self._sensor_type]
-                _LOGGER.debug("Updated %s for location %s from weather entity: %s", self._sensor_type, formatted_location, self._state)
-            else:
-                self._state = None
-                _LOGGER.warning("Attribute %s not found in weather entity for %s", self._sensor_type, formatted_location)
-
+            # Če entiteta še vedno ne obstaja po 5 poskusih
+            _LOGGER.warning(
+                "Weather entity weather.arso_vreme_%s not found after retries.", formatted_location
+            )
+            self._state = None
 
