@@ -19,17 +19,37 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, {})
     return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up ARSO Weather from a config entry."""
-    _LOGGER.debug("Setting up entry: %s", entry)
-    _LOGGER.debug("Entry options: %s", entry.options)
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Set up Slovenian Weather integration from a config entry."""
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
 
-    entry.async_on_unload(entry.add_update_listener(update_listener))
+    if config_entry.entry_id in hass.data[DOMAIN]:
+        _LOGGER.warning(
+            "Config entry %s for %s has already been setup!",
+            config_entry.title,
+            DOMAIN,
+        )
+        return False
 
-    platforms = entry.options.get("platforms", entry.data.get("platforms", DEFAULT_PLATFORMS))
-    _LOGGER.debug("Platforms to be loaded: %s", platforms)
+    hass.data[DOMAIN][config_entry.entry_id] = {}
 
-    await hass.config_entries.async_forward_entry_setups(entry, platforms)
+    # Nastavitev za platforme (senzorji in vremenske postaje)
+    platforms = config_entry.data.get("platforms", DEFAULT_PLATFORMS)
+
+    for platform in platforms:
+        try:
+            # Popravek: Uporabi `await` za asinhrono nastavitev platform
+            await hass.config_entries.async_forward_entry_setup(config_entry, platform)
+        except Exception as e:
+            _LOGGER.error(
+                "Error setting up platform %s for entry %s: %s",
+                platform,
+                config_entry.entry_id,
+                e,
+                exc_info=True,
+            )
+            return False
 
     return True
 
@@ -40,24 +60,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     platforms = entry.data.get("platforms", DEFAULT_PLATFORMS)
     unload_ok = True
 
-    if "sensor" in platforms:
-        _LOGGER.debug("Unloading sensors for entry: %s", entry.entry_id)
-        await async_remove_sensors(hass, entry)
-
+    for platform in platforms:
         try:
-            platform_unloaded = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+            _LOGGER.debug("Unloading platform %s for entry: %s", platform, entry.entry_id)
+            platform_unloaded = await hass.config_entries.async_forward_entry_unload(entry, platform)
             if not platform_unloaded:
-                _LOGGER.warning("Sensor platform for entry %s was not fully unloaded", entry.entry_id)
+                _LOGGER.warning("Platform %s for entry %s was not fully unloaded", platform, entry.entry_id)
             unload_ok = unload_ok and platform_unloaded
         except Exception as e:
-            _LOGGER.error("Error unloading sensor platform for entry %s: %s", entry.entry_id, e, exc_info=True)
+            _LOGGER.error("Error unloading platform %s for entry %s: %s", platform, entry.entry_id, e, exc_info=True)
             unload_ok = False
 
-    # Remove data from hass
-    if unload_ok and not platforms:
+    # Remove entry data if unload was successful
+    if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        _LOGGER.debug("Entry unloaded successfully: %s", entry.entry_id)
+    else:
+        _LOGGER.warning("Entry %s not fully unloaded. Some resources may remain.", entry.entry_id)
 
-    _LOGGER.debug("Entry unloaded: %s", entry.entry_id)
     return unload_ok
 
 

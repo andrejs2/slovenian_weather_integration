@@ -87,6 +87,8 @@ CLOUD_CONDITION_MAP = {
     "overcast_heavysn_day": "snowy",
     "overcast_modtssn_night": "lightning",
     "overcast_modtssn_day": "lightning",
+    "overcast_heavytssn_day": "lightning",
+    "overcast_heavytssn_night": "lightning",
 
     # Partly cloudy and rainy conditions ('clouds_icon_wwsyn_icon')
     "partcloudy_night": "partlycloudy", 
@@ -301,7 +303,6 @@ class ArsoWeather(WeatherEntity):
         attrs = {
             "location": self._location,
             "attribution": "Vir: Agencija RS za okolje",
-            "native_wind_gust_speed": self._attr_native_wind_gust_speed,  # Dodano
         }
         if self._attr_native_dew_point is not None:
             attrs["dew_point"] = self._attr_native_dew_point
@@ -326,6 +327,7 @@ class ArsoWeather(WeatherEntity):
         """Fetch new state data for the sensor and update the forecast."""
         _LOGGER.debug("Starting update for ARSO Weather: %s", self._location)
         try:
+            # Fetch weather data from API
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
                     if response.status == 200:
@@ -357,8 +359,29 @@ class ArsoWeather(WeatherEntity):
                             _LOGGER.warning("No forecast1h data available.")
 
                         await self._fetch_forecasts()
+
+            # Fetch RSS feed for dew point and visibility
+            if self._station_code:
+                try:
+                    rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
+                    feed_content = await self._fetch_rss_feed(rss_url)
+                    if feed_content:
+                        feed = await asyncio.to_thread(feedparser.parse, feed_content)
+                        entry = feed.entries[0]
+                        details = self._extract_weather_details(entry)
+
+                        # Extract dew point and visibility
+                        if 'native_dew_point' in details:
+                            self._attr_native_dew_point = float(details['native_dew_point'])
+                        if 'native_visibility' in details:
+                            self._attr_native_visibility = float(details['native_visibility'])
+                            self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
                     else:
-                        _LOGGER.warning("Failed to fetch weather data. HTTP Status: %s", response.status)
+                        _LOGGER.info(f"No RSS feed available for location {self._location}.")
+                except Exception as e:
+                    _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
+            else:
+                _LOGGER.info(f"No RSS feed available for location {self._location}.")
         except Exception as e:
             _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
 
