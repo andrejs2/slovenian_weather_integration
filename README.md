@@ -127,9 +127,12 @@ This integration is not an official integration of the Slovenian Environmental A
 - **Humidity (%)**
 - **Pressure (hPa)**
 - **Wind Speed (km/h)**
+- **Wind Gust Speed (km/h)**
+- **Wind Bearing (km/h)**
 - **Dew Point** (current weather only)
 - **Visibility (km)** (current weather only)
 - **Precipitation (mm)** (forecasts only)
+- **Snowfall (mm)** (forecasts only)
 
 ---
 
