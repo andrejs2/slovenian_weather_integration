@@ -35,10 +35,15 @@
 ---
 ## Disclaimer ⚠️
 
-This integration is not an official integration of the Slovenian Environmental Agency (Agencija RS za okolje). The source of the weather data is the national meteorological service of the Republic of Slovenia (Agencija RS za okolje).
+This integration is not an official integration of the Slovenian Environmental Agency (Agencija RS za okolje). The source of the weather data is the national meteorological service of the Republic of Slovenia (Državna meteorološka služba, ki jo izvaja Agencija RS za okolje).
 
 ---
+# Breaking Change ⚠️
 
+With the update to version 1.3.0, users upgrading from an earlier version may experience issues with the weather service or incorrect data display. To resolve this, it is recommended to delete existing locations and reconfigure them by selecting and adding them again.
+Apologies for any inconvenience caused, and thank you for your understanding!
+
+---
 ## Features 🌟
 
 ### Current Weather
