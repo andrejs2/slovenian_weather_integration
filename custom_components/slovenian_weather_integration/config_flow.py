@@ -28,7 +28,7 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             _LOGGER.debug("User input received: %s", user_input)
 
-            # Check for duplicate locations
+           
             if any(entry.data[CONF_LOCATION] == user_input[CONF_LOCATION] for entry in self._async_current_entries()):
                 errors["base"] = "location_exists"
                 _LOGGER.warning("Location %s already exists", user_input[CONF_LOCATION])
@@ -36,7 +36,7 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.debug("Creating new entry for location: %s", user_input[CONF_LOCATION])
                 return self.async_create_entry(title=user_input[CONF_LOCATION], data=user_input)
 
-        # Fetch locations and validate
+        
         locations = await self._fetch_locations()
         if not locations or "Error" in locations[0]:
             errors["base"] = "cannot_fetch_locations"
@@ -54,7 +54,7 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle import from configuration.yaml."""
         _LOGGER.debug("Importing config: %s", import_config)
 
-        # Check for duplicates
+        
         if any(entry.data[CONF_LOCATION] == import_config[CONF_LOCATION] for entry in self._async_current_entries()):
             _LOGGER.warning("Location %s already exists, skipping import", import_config[CONF_LOCATION])
             return self.async_abort(reason="location_exists")
@@ -103,27 +103,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             _LOGGER.debug("User input received: %s", user_input)
 
-            # Update config entry with the selected options
+            
             platforms = []
             if user_input.get("enable_weather"):
                 platforms.append("weather")
             if user_input.get("enable_sensor"):
                 platforms.append("sensor")
 
-            # Update the config entry options
+           
             self.hass.config_entries.async_update_entry(
                 self.config_entry, options={"platforms": platforms}
             )
             _LOGGER.debug("Updated platforms: %s", platforms)
 
-            # Notify the user that changes were saved
+            
             return self.async_create_entry(title="", data={})
 
-        # Default options from the current config_entry
+        
         current_options = self.config_entry.options.get("platforms", ["weather", "sensor"])
         _LOGGER.debug("Current options: %s", current_options)
 
-        # Use suggested values in the form schema
+        
         schema = vol.Schema({
             vol.Optional("enable_weather", default="weather" in current_options): bool,
             vol.Optional("enable_sensor", default="sensor" in current_options): bool,
@@ -131,7 +131,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         _LOGGER.debug("Generated options schema: %s", schema)
 
-        # Display the form to the user
+        
         return self.async_show_form(
             step_id="init",
             data_schema=schema
