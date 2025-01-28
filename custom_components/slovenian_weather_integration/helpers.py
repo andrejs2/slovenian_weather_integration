@@ -26,3 +26,4 @@ async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
             _LOGGER.debug("Removing sensor: %s", entity_id)
             registry.async_remove(entity_id)
             _LOGGER.info("Removed sensor: %s", entity_id)
+
