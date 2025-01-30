@@ -18,6 +18,7 @@ from homeassistant.const import UnitOfLength
 import asyncio
 from datetime import datetime, timedelta
 from homeassistant.util.dt import as_local
+from .utci import fetch_utci_data 
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -179,7 +180,10 @@ CLOUD_CONDITION_MAP = {
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up ARSO Weather platform from a config entry."""
     location = config_entry.data.get('location', 'Ljubljana')  
+
+    _LOGGER.debug("🔄 Creating ARSO Weather entity for location: %s", location)
     async_add_entities([ArsoWeather(location, config_entry.entry_id)], True)
+    _LOGGER.debug("ARSO Weather entity for %s successfully created", location)
 
 class ArsoWeather(WeatherEntity):
     """Representation of ARSO Weather entity."""
@@ -190,6 +194,7 @@ class ArsoWeather(WeatherEntity):
         self._location = location
         self._station_code = RSS_STATION_CODES.get(location)
         self._attr_native_temperature = None
+        self._attr_native_apparent_temperature = None
         self._attr_native_pressure = None
         self._attr_humidity = None
         self._attr_native_wind_speed = None
@@ -225,6 +230,11 @@ class ArsoWeather(WeatherEntity):
     @property
     def native_temperature(self):
         return self._attr_native_temperature
+
+    @property
+    def native_apparent_temperature(self):
+        """Return the apparent temperature."""
+        return self._attr_native_apparent_temperature
 
     @property
     def native_temperature_unit(self):
@@ -291,14 +301,6 @@ class ArsoWeather(WeatherEntity):
     @property
     def extra_state_attributes(self):
         """Return additional attributes."""
-        return {
-            "location": self._location,
-            "attribution": "Vir: Agencija RS za okolje",
-        }
-
-    @property
-    def extra_state_attributes(self):
-        """Return additional attributes."""
         attrs = {
             "location": self._location,
             "attribution": "Vir: Agencija RS za okolje",
@@ -307,7 +309,11 @@ class ArsoWeather(WeatherEntity):
             attrs["dew_point"] = self._attr_native_dew_point
         if self._attr_native_visibility is not None:
             attrs["visibility"] = self._attr_native_visibility
+        if self._attr_native_apparent_temperature is not None:
+            attrs["apparent_temperature"] = self._attr_native_apparent_temperature  # ✅ Poskrbimo, da se apparent temp doda
+        _LOGGER.debug("🔎 Weather entity attributes for %s: %s", self._location, attrs)
         return attrs
+
 
     @property
     def device_info(self):
@@ -322,12 +328,31 @@ class ArsoWeather(WeatherEntity):
     async def async_update(self):
         """Fetch new state data for the sensor and update the forecast."""
         _LOGGER.debug("Starting update for ARSO Weather: %s", self._location)
+
+
+        formatted_location = self._location.lower().replace(" ", "_")
+        formatted_location = formatted_location.replace("č", "c").replace("š", "s").replace("ž", "z")
+
+        for attempt in range(5):  # Poskusimo večkrat v razmiku 2 sekund
+            weather_entity = self.hass.states.get(f"weather.arso_vreme_{formatted_location}")
+
+            if weather_entity:
+                _LOGGER.debug("✅ Weather entity found: %s", weather_entity)
+                break
+
+            _LOGGER.warning("⚠️ Weather entity weather.arso_vreme_%s not found. Retrying in 2s...", formatted_location)
+            await asyncio.sleep(2)
+        else:
+            _LOGGER.error("Weather entity weather.arso_vreme_%s not found after retries.", formatted_location)
+            return  # Prekini posodobitev, če entitete ni
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
                     if response.status == 200:
                         data = await response.json()
-                        _LOGGER.debug("Data: %s", data)
+                        _LOGGER.debug("🌍 Data received from API: %s", data)
+
                         forecast1h = data.get("forecast1h", {}).get("features", [])
                         if forecast1h:
                             first_entry = forecast1h[0].get("properties", {}).get("days", [])[0]["timeline"][0]
@@ -337,17 +362,28 @@ class ArsoWeather(WeatherEntity):
                             self._attr_native_wind_speed = float(first_entry.get("ff_val", 0))
                             self._attr_native_wind_gust_speed = float(first_entry.get("ffmax_val", 0) or 0)
                             self._attr_wind_bearing = WIND_DIRECTION_MAP.get(first_entry.get("dd_shortText", ""), "")
-                            condition = first_entry.get("clouds_icon_wwsyn_icon", "").lower()
-                            self._attr_condition = CLOUD_CONDITION_MAP.get(condition, "unknown")
+                            self._attr_condition = CLOUD_CONDITION_MAP.get(first_entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown")
+
                             _LOGGER.debug(
-                                "Updated current state from forecast1h - Temperature: %s, Condition: %s, Wind Gust Speed: %s",
-                                self._attr_native_temperature,
-                                self._attr_condition,
-                                self._attr_native_wind_gust_speed,
+                                "Updated state: Temperature=%s, Condition=%s, Wind Gust Speed=%s",
+                                self._attr_native_temperature, self._attr_condition, self._attr_native_wind_gust_speed,
                             )
                         else:
                             _LOGGER.warning("No forecast1h data available.")
+
+                        # Fetch UTCI data for apparent temperature
+                        utci_value = await fetch_utci_data(self.hass, self._location)
+                        if utci_value is not None:
+                            self._attr_native_apparent_temperature = round(utci_value, 1)
+                        else:
+                            self._attr_native_apparent_temperature = self._attr_native_temperature
+                            _LOGGER.warning("UTCI data unavailable, using temperature instead.")
+                        
+                        _LOGGER.debug("Final apparent temperature: %s", self._attr_native_apparent_temperature)
+
                         await self._fetch_forecasts()
+            
+            # ✅ Fetch visibility and dew point from RSS
             if self._station_code:
                 try:
                     rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
@@ -362,14 +398,21 @@ class ArsoWeather(WeatherEntity):
                         if 'native_visibility' in details:
                             self._attr_native_visibility = float(details['native_visibility'])
                             self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
+                        _LOGGER.debug("RSS Data - Dew Point: %s, Visibility: %s", self._attr_native_dew_point, self._attr_native_visibility)
                     else:
                         _LOGGER.info(f"No RSS feed available for location {self._location}.")
                 except Exception as e:
                     _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
             else:
                 _LOGGER.info(f"No RSS feed available for location {self._location}.")
+
+            # ✅ Zagotovimo, da se Home Assistant posodobi
+            self.async_write_ha_state()
+            _LOGGER.debug("🔄 Home Assistant state updated for %s", self._location)
+
         except Exception as e:
-            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
+            _LOGGER.error("Error updating ARSO Weather for %s: %s", self._location, e, exc_info=True)
+
 
     async def _fetch_forecasts(self):
         """Fetch daily, hourly, and simulated twice-daily forecast data."""
@@ -393,6 +436,8 @@ class ArsoWeather(WeatherEntity):
                         _LOGGER.warning("Failed to fetch forecast data. HTTP Status: %s", response.status)
         except Exception as e:
             _LOGGER.error("Error fetching forecast data for location %s: %s", self._location, e, exc_info=True)
+
+            
     def _process_hourly_forecast(self, forecast_data):
             """Process the hourly forecast data."""
             hourly_forecasts = []
