@@ -9,6 +9,11 @@ from .const import DOMAIN
 from asyncio import sleep
 from .helpers import async_remove_sensors
 from urllib.parse import quote
+from .sun import fetch_sunshine_hours
+from .utci import async_setup_entry as setup_utci_sensor
+from .utci import fetch_utci_data
+
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +33,9 @@ SENSOR_TYPES = {
     "cloud_coverage": ["Cloud Coverage", "%", "mdi:cloud", None],
     "dew_point": ["Dew Point", "°C", "mdi:thermometer", None],
     "visibility": ["Visibility", "km", "mdi:eye", None],
+    "sunshine_hours": ["Sunshine Hours", "h", "mdi:weather-sunny", None],
+    "native_apparent_temperature": ["Apparent Temperature", "°C", "mdi:thermometer", "temperature"],
+
 }
 
 CLOUD_COVERAGE_MAP = {
@@ -40,12 +48,27 @@ CLOUD_COVERAGE_MAP = {
     "oblačno": 100,
 }
 
+LOCATION_MAPPING = {
+    "bilje_pri_novi_gorici": "bilje",
+    "celje_medlog": "celje",
+    "bovec_letalisce": "bovec",
+    "cerklje_letalisce": "letalisce_cerklje_ob_krki",
+    "crnomelj_doblice": "crnomelj",
+    "ljubljana_bezigrad": "ljubljana",
+    "murska_sobota_rakican": "murska_sobota",
+    "portoroz_letalisce": "letalisce_portoroz",
+}
+
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up ARSO Weather sensors."""
     location = config_entry.data.get("location")
 
     monitored_conditions = config_entry.data.get("monitored_conditions", list(SENSOR_TYPES.keys())) 
 
+    # 🆕 Ensure sunshine_hours is always included in monitored conditions
+    if "sunshine_hours" not in monitored_conditions:
+        monitored_conditions.append("sunshine_hours")
+        
     if not monitored_conditions:
         _LOGGER.warning("No monitored_conditions specified for location: %s. No sensors will be added.", location)
         return 
@@ -54,7 +77,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     for sensor_type in monitored_conditions: 
         entities.append(ArsoWeatherSensor(hass, location, sensor_type, monitored_conditions))
 
+    # 🆕 Dodaj async klic za UTCI senzor
+    await setup_utci_sensor(hass, config_entry, async_add_entities)
+
     async_add_entities(entities, True)
+
 
 class ArsoWeatherSensor(Entity):
     """Representation of an ARSO Weather sensor."""
@@ -121,6 +148,18 @@ class ArsoWeatherSensor(Entity):
         """Fetch data for the sensor."""
         if self._sensor_type not in self._monitored_conditions:
             self._state = None
+            return
+        if self._sensor_type == "native_apparent_temperature":
+            _LOGGER.info("Fetching UTCI data for apparent temperature...")
+            self._state = await fetch_utci_data(self._hass, self._location)
+            _LOGGER.info("Apparent Temperature: %s", self._state)
+            return
+
+        # Preverimo, ali je tip senzorja "sunshine_hours", in če je, pridobimo podatek posebej
+        if self._sensor_type == "sunshine_hours":
+            _LOGGER.info("🔆 Calling fetch_sunshine_hours()...")
+            self._state = await fetch_sunshine_hours()
+            _LOGGER.info("Sunshine hours fetched: %s", self._state)
             return
 
         session = async_get_clientsession(self._hass)
@@ -194,6 +233,8 @@ class ArsoWeatherSensor(Entity):
             formatted_location = self._location.lower()
             formatted_location = formatted_location.replace(" ", "_")
             formatted_location = formatted_location.replace("č", "c").replace("š", "s").replace("ž", "z")
+            formatted_location = formatted_location.replace("ć", "c")
+            formatted_location = formatted_location.replace("-", "_") 
 
             for _ in range(5): 
                 weather_entity = self.hass.states.get(f"weather.arso_vreme_{formatted_location}")
@@ -220,4 +261,3 @@ class ArsoWeatherSensor(Entity):
                 "Weather entity weather.arso_vreme_%s not found after retries.", formatted_location
             )
             self._state = None
-
