@@ -48,9 +48,9 @@ Apologies for any inconvenience caused, and thank you for your understanding!
 ## Features 🌟
 
 ### Current Weather
-- Displays current temperature, pressure, humidity, wind speed, wind direction and visibility.
-- **NEW:** Added support for wind gust speed, dew point (where ARSO provides data) and visibility.
-- **NEW:** Sensor entities added for current weather.
+- Displays current temperature, pressure, humidity, wind speed, wind direction, visibility, apparent temperature, uv index, dew point, ozone and precipitation.
+- **NEW:** Added support for ozone, apparent temperature and uv index (where ARSO provides data).
+- **NEW:** Sensor entities added for current weather - with included Rain Radar gif, forecast for present day and tomorrow) pollen sensor and air quality sensor.
 - **NEW:** Weather condition icons mapped to Home Assistant's standards.
 
 ### Hourly Forecast
@@ -71,6 +71,7 @@ Apologies for any inconvenience caused, and thank you for your understanding!
   - 24-hour accumulated precipitation (`tp_24h_acc`).
   - Wind speed and **NEW:** wind gust speed (`native_wind_gust_speed`).
   - Weather condition and pressure.
+  - UV Index.
 
 
 
