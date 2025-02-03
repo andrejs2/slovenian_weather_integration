@@ -17,7 +17,7 @@
 
 
 <div align="center">
-  <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/ARSO-banner.JPG?raw=true" alt="Icon Preview" width="800">
+  <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/ARSO-banner.JPG?raw=true" alt="Icon Preview" width="600">
 </div>
 
 
@@ -35,7 +35,8 @@
 ---
 ## Disclaimer ⚠️
 
-This integration is not an official integration of the Slovenian Environmental Agency (Agencija RS za okolje). The source of the weather data is the national meteorological service of the Republic of Slovenia (Državna meteorološka služba, ki jo izvaja Agencija RS za okolje).
+This integration is not an official integration of the Slovenian Environmental Agency (Agencija RS za okolje). 
+The source of the weather data is the national meteorological service of the Republic of Slovenia (Državna meteorološka služba) which is provided by Agencija RS za okolje.
 
 ---
 # Breaking Change ⚠️
