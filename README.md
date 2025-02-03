@@ -17,7 +17,7 @@
 
 
 <div align="center">
-  <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/ARSO-banner.JPG?raw=true" alt="Icon Preview" width="400">
+  <img src="https://github.com/andrejs2/slovenian_weather_integration/blob/main/images/ARSO-banner.JPG?raw=true" alt="Icon Preview" width="800">
 </div>
 
 
