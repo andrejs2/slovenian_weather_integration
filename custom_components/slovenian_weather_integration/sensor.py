@@ -2,11 +2,10 @@
 sensor.py - ARSO Weather integration
 
 Ta datoteka vsebuje implementacijo senzorjev za kakovost zraka in vremenskih parametrov.
-Sedaj se celotni AQI izračuna na podlagi slovenskih mejnih vrednosti (RS).
 """
 
 import logging
-import asyncio  # RS MOD: Uvozimo asyncio za uporabo sleep
+import asyncio
 from asyncio import sleep
 from urllib.parse import quote
 
@@ -28,7 +27,7 @@ from .pollen import fetch_pollen_data
 
 _LOGGER = logging.getLogger(__name__)
 
-# --- Konstante za vremenske senzorje ---
+# Konstante za vremenske senzorje
 SENSOR_TYPES = {
     "temperature": ["Temperature", "°C", "mdi:thermometer", "temperature"],
     "humidity": ["Humidity", "%", "mdi:water-percent", "humidity"],
@@ -88,7 +87,7 @@ RS_POLLUTANT_BREAKPOINTS = {
     "no2":    [40, 80, 150, 200],        # 1: ≤40, 2: 41–80, 3: 81–150, 4: 151–200, 5: >200
     "co":     [2, 4, 6, 8],              # 1: ≤2, 2: 2.1–4, 3: 4.1–6, 4: 6.1–8, 5: >8  (v ppm)
     "so2":    [20, 40, 60, 100],         # 1: ≤20, 2: 21–40, 3: 41–60, 4: 61–100, 5: >100
-    # "benzen": ni določeno, zato ga ne obravnavamo
+    # "benzen": ni določeno, zato ga ne obravnava
 }
 
 # Funkcija za izračun podindeksa na RS lestvici
@@ -114,7 +113,7 @@ def compute_overall_aqi_rs(data: dict) -> (int, str):
                 sub_index = compute_sub_index_rs(value, breakpoints)
                 sub_indices.append(sub_index)
             except ValueError:
-                _LOGGER.warning("⚠️ Neveljavna vrednost za %s: %s", pollutant, value)
+                _LOGGER.warning("Neveljavna vrednost za %s: %s", pollutant, value)
     if not sub_indices:
         overall_index = None
     else:
@@ -159,13 +158,13 @@ async def async_setup_entry(
 
         # Ustvarimo senzor za AQI, če imamo podatke
         if air_quality_data and location_normalized in air_quality_data:
-            _LOGGER.info("✅ Dodajam senzor kakovosti zraka za %s", location)
+            _LOGGER.info("Dodajam senzor kakovosti zraka za %s", location)
             sensor = ArsoAirQualitySensor(hass, location, air_quality_data)
             entities.append(sensor)
         else:
             _LOGGER.warning("⚠️ Ni podatkov o kakovosti zraka za %s", location)
 
-    # Pridobimo seznam spremljanih vremenskih parametrov
+    # Pridobi seznam spremljanih vremenskih parametrov
     monitored_conditions = config_entry.data.get("monitored_conditions", list(SENSOR_TYPES.keys()))
     if "sunshine_hours" not in monitored_conditions:
         monitored_conditions.append("sunshine_hours")
@@ -174,12 +173,12 @@ async def async_setup_entry(
         for sensor_type in monitored_conditions:
             entities.append(ArsoWeatherSensor(hass, location, sensor_type, monitored_conditions))
     else:
-        _LOGGER.warning("⚠️ Ni določenih monitored_conditions za %s", location)
+        _LOGGER.warning("Ni določenih monitored_conditions za %s", location)
 
-    # Dodamo še UTCI senzor
-    await setup_utci_sensor(hass, config_entry, async_add_entities)
+    # Dodamo še UTCI senzor - update: ga ne dodamo, ker ga že utci.py ustvari
+    #await setup_utci_sensor(hass, config_entry, async_add_entities)
 
-    _LOGGER.info("✅ Skupno dodajam %d senzorjev", len(entities))
+    _LOGGER.info("Skupno dodajam %d senzorjev", len(entities))
     async_add_entities(entities, True)
 
 
@@ -193,7 +192,7 @@ class ArsoAirQualitySensor(Entity):
         """Inicializacija senzorja za kakovost zraka."""
         self._hass = hass
         self._location = location
-        self._state = None  # V state shranimo kategorijo (npr. "Dobro", "Zmerno", ...)
+        self._state = None  # V state shrani kategorijo (npr. "Dobro", "Zmerno", ...)
         self._attributes = {}
         _LOGGER.info("📡 Inicializacija senzorja za kakovost zraka: %s", location)
         self.update_air_quality_data(air_quality_data)
@@ -208,7 +207,7 @@ class ArsoAirQualitySensor(Entity):
             return
 
         data = air_quality_data.get(location_normalized, {})
-        overall_index, category = compute_overall_aqi_rs(data)  # RS MOD: Uporabimo RS funkcijo
+        overall_index, category = compute_overall_aqi_rs(data)
         self._state = category
         self._attributes = {
             "overall_index": overall_index,
@@ -221,16 +220,16 @@ class ArsoAirQualitySensor(Entity):
             "Benzen": data.get("benzen", "Ni podatkov"),
             "attribution": "Vir: Agencija RS za okolje",
         }
-        _LOGGER.info("✅ Posodobljeni podatki za senzor kakovosti zraka (%s): %s", self._location, self._attributes)
+        _LOGGER.info("Posodobljeni podatki za senzor kakovosti zraka (%s): %s", self._location, self._attributes)
 
     async def async_update(self):
         """Pridobi najnovejše podatke o kakovosti zraka."""
-        _LOGGER.debug("🔄 Posodobitev podatkov za kakovost zraka: %s", self._location)
+        _LOGGER.debug("Posodobitev podatkov za kakovost zraka: %s", self._location)
         air_quality_data = await fetch_air_quality_data()
         if air_quality_data:
             self.update_air_quality_data(air_quality_data)
         else:
-            _LOGGER.warning("⚠️ Air quality data is empty or None!")
+            _LOGGER.warning("Air quality data is empty or None!")
 
     @property
     def unique_id(self):
@@ -283,8 +282,8 @@ class ArsoWeatherSensor(Entity):
 
     @property
     def unique_id(self):
-        """Return a unique ID for the sensor."""
-        return f"arso_weather_{self._location.lower()}_{self._sensor_type}"
+        """Return a unique ID for this sensor."""
+        return f"arso_weather_{self._location.replace(' ', '_').lower()}_{self._sensor_type}"
 
     @property
     def name(self):
@@ -344,15 +343,15 @@ class ArsoWeatherSensor(Entity):
             return
 
         if self._sensor_type == "native_apparent_temperature":
-            _LOGGER.info("🌡️ Fetching UTCI data for apparent temperature in %s...", self._location)
+            _LOGGER.info("Fetching UTCI data for apparent temperature in %s...", self._location)
             self._state = await fetch_utci_data(self._hass, self._location)
-            _LOGGER.info("✅ Apparent Temperature for %s: %s", self._location, self._state)
+            _LOGGER.info("Apparent Temperature for %s: %s", self._location, self._state)
             return
 
         if self._sensor_type == "sunshine_hours":
-            _LOGGER.info("🔆 Fetching sunshine hours for %s...", self._location)
+            _LOGGER.info("Fetching sunshine hours for %s...", self._location)
             self._state = await fetch_sunshine_hours()
-            _LOGGER.info("✅ Sunshine hours for %s: %s", self._location, self._state)
+            _LOGGER.info("Sunshine hours for %s: %s", self._location, self._state)
             return
 
         session = async_get_clientsession(self._hass)
@@ -371,20 +370,20 @@ class ArsoWeatherSensor(Entity):
             try:
                 async with session.get(api_url) as response:
                     if response.status != 200:
-                        _LOGGER.warning("⚠️ Failed to fetch data for %s: HTTP %s", self._location, response.status)
+                        _LOGGER.warning("Failed to fetch data for %s: HTTP %s", self._location, response.status)
                         self._state = None
                         return
 
                     data = await response.json()
                     forecast1h = data.get("forecast1h", {}).get("features", [])[0].get("properties", {}).get("days", [])
                     if not forecast1h:
-                        _LOGGER.warning("⚠️ No forecast data available for %s", self._location)
+                        _LOGGER.warning("No forecast data available for %s", self._location)
                         self._state = None
                         return
 
                     timeline = forecast1h[0].get("timeline", [])
                     if not timeline:
-                        _LOGGER.warning("⚠️ No timeline data available for %s", self._location)
+                        _LOGGER.warning("No timeline data available for %s", self._location)
                         self._state = None
                         return
 
@@ -404,9 +403,9 @@ class ArsoWeatherSensor(Entity):
                         if self._sensor_type == "cloud_coverage":
                             cloud_text = current_forecast.get("clouds_shortText", "jasno").lower()
                             self._state = CLOUD_COVERAGE_MAP.get(cloud_text, 0)
-                    _LOGGER.debug("✅ Updated %s for %s: %s", self._sensor_type, self._location, self._state)
+                    _LOGGER.debug("Updated %s for %s: %s", self._sensor_type, self._location, self._state)
             except Exception as e:
-                _LOGGER.error("❌ Error fetching data for %s: %s", self._location, e)
+                _LOGGER.error("Error fetching data for %s: %s", self._location, e)
                 self._state = None
         else:
             formatted_location = normalize_location(self._location)
@@ -417,14 +416,14 @@ class ArsoWeatherSensor(Entity):
                     attributes = weather_entity.attributes
                     if self._sensor_type in attributes:
                         self._state = attributes[self._sensor_type]
-                        _LOGGER.debug("✅ Updated attribute %s for %s: %s", self._sensor_type, self._location, self._state)
+                        _LOGGER.debug("Updated attribute %s for %s: %s", self._sensor_type, self._location, self._state)
                     else:
                         self._state = None
-                        _LOGGER.warning("⚠️ Attribute '%s' not found in weather entity for %s", self._sensor_type, self._location)
+                        _LOGGER.warning("Attribute '%s' not found in weather entity for %s", self._sensor_type, self._location)
                     return
-                _LOGGER.debug("⏳ Weather entity not found for %s. Retrying...", formatted_location)
+                _LOGGER.debug("Weather entity not found for %s. Retrying...", formatted_location)
                 await sleep(2)
-            _LOGGER.warning("⚠️ Weather entity for %s not found after retries.", formatted_location)
+            _LOGGER.warning("Weather entity for %s not found after retries.", formatted_location)
             self._state = None
 
 class ArsoPollenSensor(Entity):
