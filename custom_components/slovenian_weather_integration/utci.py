@@ -11,7 +11,9 @@ from .const import DOMAIN
 from datetime import datetime, timezone
 
 _LOGGER = logging.getLogger(__name__)
+
 # Preslikava lokacij za pravilno izbiro UTCI CSV
+
 UTCI_LOCATIONS = {
     "Bilje pri Novi Gorici": "BILJE",
     "Bovec": "BOVEC%20-%20LETALISCE",
@@ -56,16 +58,20 @@ async def fetch_utci_data(hass: HomeAssistant, location: str):
             now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
             latest_utci = df.loc[df['validTime'] == now, 'UTCI'].values
 
-            if latest_utci.size > 0:
-                return latest_utci[0]
-            else:
-                _LOGGER.warning("🚨 No UTCI data available for the current hour (%s).", now)
-                return None
+            # ✅ Fallback: If no data for the current hour, use the most recent available UTCI
+            if latest_utci.size == 0:
+                _LOGGER.warning("🚨 No UTCI data for current hour (%s). Using most recent available data.", now)
+                latest_utci = df.loc[df['UTCI'].notna(), 'UTCI'].values
+                if latest_utci.size == 0:
+                    _LOGGER.error("❌ No UTCI data available at all for location: %s", location)
+                    return None
+            
+            return latest_utci[-1]  # Return latest available UTCI value
 
         utci_value = await hass.async_add_executor_job(parse_csv)
         
         if utci_value is not None:
-            utci_value = round(utci_value, 1)  # Zaokrožitev na eno decimalno mesto
+            utci_value = round(utci_value, 1) # zaokroži na decimalno mesto
 
         _LOGGER.info("UTCI for current hour (rounded): %s", utci_value)
         return utci_value
@@ -86,7 +92,7 @@ class UTCISensor(Entity):
         self._attr_icon = "mdi:thermometer"
         self._attr_device_class = DEVICE_CLASS_TEMPERATURE
         self._attr_state_class = STATE_CLASS_MEASUREMENT
-        self._attr_extra_state_attributes = {}  # Dodatne informacije, če jih bomo želeli prikazati
+        self._attr_extra_state_attributes = {}
         self._hourly_utci_forecast = {}
 
     @property
@@ -165,9 +171,9 @@ class UTCISensor(Entity):
     def icon(self):
         return self._attr_icon
 
-    @property
-    def unique_id(self):
-        return f"arso_weather_{self._location.replace(' ', '_').lower()}_apparent_temperature"
+    # @property
+    # def unique_id(self):
+    #     return f"arso_weather_{self._location.replace(' ', '_').lower()}_apparent_temperature"
 
     @property
     def device_info(self):
