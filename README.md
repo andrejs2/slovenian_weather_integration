@@ -1,3 +1,7 @@
+Prepare for v1.4.0
+sun.py should be fixed
+working: uvindex, air quality, pollen, cameras, ozone, agro-meteo
+
 
 [![Python][python-shield]][python]
 [![License][license-shield]][license]
