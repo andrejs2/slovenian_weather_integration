@@ -1,3 +1,7 @@
+added agro sensor and sunshine hours
+needed fix for names and unique_id and device names
+duplicate sunshine duration is still present
+
 
 [![Python][python-shield]][python]
 [![License][license-shield]][license]
