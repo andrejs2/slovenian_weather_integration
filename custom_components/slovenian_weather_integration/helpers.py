@@ -15,14 +15,15 @@ async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
             registry.async_remove(entity_id)
             _LOGGER.info("Removed sensor: %s", entity_id)
 
-async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Remove sensors for a specific location."""
-    _LOGGER.debug("Attempting to remove sensors for entry: %s", config_entry.entry_id)
-    location = config_entry.data.get("location").lower().replace(" ", "_")
-    registry = async_get(hass)
-
-    for entity_id in list(hass.states.async_entity_ids("sensor")):
-        if entity_id.startswith(f"sensor.arso_weather_{location}"):
-            _LOGGER.debug("Removing sensor: %s", entity_id)
-            registry.async_remove(entity_id)
-            _LOGGER.info("Removed sensor: %s", entity_id)
+def normalize_location(location: str) -> str:
+    """Normalizacija lokacij za skladnost z Home Assistant entitetami."""
+    return (
+        location.lower()
+        .replace("č", "c")
+        .replace("š", "s")
+        .replace("ž", "z")
+        .replace(" ", "_")
+        .replace("-", "_")
+        .strip("_")  # Odstrani odvečne `_` na začetku ali koncu
+        .replace("__", "_")  # Zamenja dvojne `_` z enim
+    )
