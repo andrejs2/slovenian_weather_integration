@@ -1,37 +1,49 @@
+
 import aiohttp
+import asyncio
 import logging
-from datetime import datetime
-from homeassistant.components.weather import WeatherEntity
-from homeassistant.const import UnitOfTemperature, UnitOfPressure, UnitOfSpeed
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+import re
+import feedparser
+from datetime import datetime, timedelta
+import pytz
+
+from homeassistant.components.weather import WeatherEntity, WeatherEntityFeature
+from homeassistant.const import UnitOfTemperature, UnitOfPressure, UnitOfSpeed, UnitOfLength
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from .const import DOMAIN
-from homeassistant.components.weather import WeatherEntityFeature
-from astral.sun import sun
-from astral import LocationInfo
-import pytz
-import feedparser
-import re
-from .const import DOMAIN, RSS_STATION_CODES  
-from homeassistant.const import UnitOfLength
-import asyncio
-from datetime import datetime, timedelta
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.dt import as_local
+
+from .const import DOMAIN, API_URL, RSS_STATION_CODES, LOCATIONS_URL
+from .utci import fetch_utci_data
+from .air import fetch_air_quality_data, normalize_location
 
 _LOGGER = logging.getLogger(__name__)
 
 WIND_DIRECTION_MAP = {
     "S": "S",
-    "J": "S",  
-    "SZ": "NW",  
-    "SV": "NE",  
-    "Z": "W",  
-    "V": "E",  
+    "J": "S",
+    "SZ": "NW",
+    "SV": "NE",
+    "Z": "W",
+    "V": "E",
     "JZ": "SW",
     "JV": "SE",
-    "N": "N" 
+    "N": "N"
 }
+
+# Podatki za pretvorbo oblaka iz besedilne ocene v odstotno vrednost
+CLOUD_COVERAGE_MAP = {
+    "jasno": 0,
+    "pretežno jasno": 12.5,
+    "delno jasno": 25,
+    "delno oblačno": 50,
+    "zmerno oblačno": 62.5,
+    "pretežno oblačno": 87.5,
+    "oblačno": 100,
+}
+
+# Preslikava stanj – uporabljamo jo zgolj za "condition" (ki se ločeno določi)
 
 CLOUD_CONDITION_MAP = {
     # Common weather conditions from 'wwsyn_shortText' and 'clouds_shortText'
@@ -176,20 +188,34 @@ CLOUD_CONDITION_MAP = {
     "prevcloudy_night": "cloudy",
 }
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+
+async def async_setup_entry(
+    hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+):
     """Set up ARSO Weather platform from a config entry."""
-    location = config_entry.data.get('location', 'Ljubljana')  
+    location = config_entry.data.get("location", "Ljubljana")
+    _LOGGER.debug("Creating ARSO Weather entity for location: %s", location)
     async_add_entities([ArsoWeather(location, config_entry.entry_id)], True)
+    _LOGGER.debug("ARSO Weather entity for %s successfully created", location)
 
 class ArsoWeather(WeatherEntity):
     """Representation of ARSO Weather entity."""
 
-    _attr_supported_features = WeatherEntityFeature.FORECAST_HOURLY | WeatherEntityFeature.FORECAST_DAILY | WeatherEntityFeature.FORECAST_TWICE_DAILY
+    _attr_supported_features = (
+        WeatherEntityFeature.FORECAST_HOURLY |
+        WeatherEntityFeature.FORECAST_DAILY |
+        WeatherEntityFeature.FORECAST_TWICE_DAILY
+    )
 
     def __init__(self, location, entry_id):
+        """Initialize the ARSO Weather entity."""
         self._location = location
         self._station_code = RSS_STATION_CODES.get(location)
+        self._entry_id = entry_id
+
+        # Current conditions
         self._attr_native_temperature = None
+        self._attr_native_apparent_temperature = None
         self._attr_native_pressure = None
         self._attr_humidity = None
         self._attr_native_wind_speed = None
@@ -197,30 +223,39 @@ class ArsoWeather(WeatherEntity):
         self._attr_native_wind_gust_speed = None
         self._attr_native_precipitation = None
         self._attr_condition = None
-        self._daily_forecast = None
-        self._hourly_forecast = None
-        self._twice_daily_forecast = None
-        self._entry_id = entry_id  
+        # Dodan cloud coverage (v odstotkih)
+        self._attr_cloud_coverage = None
+
+        # Forecasts – initialize as empty lists
+        self._daily_forecast = []
+        self._hourly_forecast = []
+        self._twice_daily_forecast = []
+
+        # Additional attributes
         self._attr_native_dew_point = None
         self._attr_native_visibility = None
         self._attr_native_visibility_unit = None
+        self._attr_ozone = None
+        self._attr_uv_index = None
 
     def is_daytime(self):
         """Check if it is currently daytime based on the sun position."""
+        from astral import LocationInfo
+        from astral.sun import sun
         loc_info = LocationInfo(self._location)
-        s = sun(loc_info.observer, date=datetime.now(self.hass.config.time_zone))
-        now = pytz.UTC.localize(datetime.utcnow())
-        return s['sunrise'] <= now <= s['sunset']
+        current_time = datetime.now(pytz.UTC)
+        s = sun(loc_info.observer, date=current_time, tzinfo=pytz.UTC)
+        return s["sunrise"] <= current_time <= s["sunset"]
 
     @property
     def unique_id(self):
         """Return a unique ID for this entity."""
-        return f"{self._entry_id}_{self._location.lower()}"
+        return f"{self._entry_id}_{self._location.lower().replace(' ', '_')}"
 
     @property
     def name(self):
         """Return the name of the entity."""
-        return f"ARSO VREME - {self._location}"
+        return f"ARSO WEATHER - {self._location}"
 
     @property
     def native_temperature(self):
@@ -252,7 +287,6 @@ class ArsoWeather(WeatherEntity):
 
     @property
     def native_wind_gust_speed(self):
-        """Return the current wind gust speed."""
         return self._attr_native_wind_gust_speed
 
     @property
@@ -260,41 +294,16 @@ class ArsoWeather(WeatherEntity):
         return self._attr_wind_bearing
 
     @property
-    def condition(self):
-        return self._attr_condition
-
-    @property
-    def forecast(self):
-        """Return the forecast data based on the supported features."""
-        if self._attr_supported_features & WeatherEntityFeature.FORECAST_TWICE_DAILY:
-            return self._twice_daily_forecast
-        elif self._attr_supported_features & WeatherEntityFeature.FORECAST_DAILY:
-            return self._daily_forecast
-        elif self._attr_supported_features & WeatherEntityFeature.FORECAST_HOURLY:
-            return self._hourly_forecast
-        return None
-
-
-    @property
-    def twice_daily_forecast(self):
-        """Return twice daily forecast."""
-        return self._twice_daily_forecast
-
-    @property
     def native_precipitation(self):
         return self._attr_native_precipitation
 
     @property
     def precipitation_unit(self):
-        return 'mm'
+        return "mm"
 
     @property
-    def extra_state_attributes(self):
-        """Return additional attributes."""
-        return {
-            "location": self._location,
-            "attribution": "Vir: Agencija RS za okolje",
-        }
+    def condition(self):
+        return self._attr_condition
 
     @property
     def extra_state_attributes(self):
@@ -307,161 +316,281 @@ class ArsoWeather(WeatherEntity):
             attrs["dew_point"] = self._attr_native_dew_point
         if self._attr_native_visibility is not None:
             attrs["visibility"] = self._attr_native_visibility
+        if self._attr_native_apparent_temperature is not None:
+            attrs["apparent_temperature"] = self._attr_native_apparent_temperature
+        if self._attr_ozone is not None:
+            attrs["ozone"] = self._attr_ozone
+        if self._attr_uv_index is not None:
+            attrs["uv_index"] = self._attr_uv_index
+        if self._attr_cloud_coverage is not None:
+            attrs["cloud_coverage"] = self._attr_cloud_coverage
+        _LOGGER.debug("Weather entity attributes for %s: %s", self._location, attrs)
         return attrs
 
     @property
     def device_info(self):
-        """Return device information to group all related entities under one device."""
+        """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._location)},
-            "name": f"ARSO Weather Station - {self._location.capitalize()}",
+            "name": f"ARSO Weather Station - {self._location.title()}",
             "manufacturer": "ARSO",
-            "model": "Weather Station",
+            "model": "Weather Sensors",
             "entry_type": "service",
         }
+
+    @property
+    def uv_index(self):
+        return self._attr_uv_index
+
     async def async_update(self):
-        """Fetch new state data for the sensor and update the forecast."""
+        """Fetch new state data for the entity.
+        
+        Note: We do not call self.async_write_ha_state() explicitly.
+        """
         _LOGGER.debug("Starting update for ARSO Weather: %s", self._location)
+
+        # Fetch UV index
+        from .uv_index import fetch_uv_index, fetch_location_coords
+        coords = await fetch_location_coords(self._location, LOCATIONS_URL)
+        _LOGGER.debug("Fetched coordinates for UV index: %s", coords)
+        if coords:
+            lat, lon = coords
+            uv = await fetch_uv_index(lat, lon)
+            if uv is not None:
+                self._attr_uv_index = uv
+                _LOGGER.debug("UV index for %s: %s", self._location, uv)
+            else:
+                self._attr_uv_index = None
+                _LOGGER.warning("UV index not available for %s", self._location)
+        else:
+            self._attr_uv_index = None
+            _LOGGER.warning("Coordinates not found for %s", self._location)
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
+                async with session.get(f"{API_URL}?location={self._location}") as response:
                     if response.status == 200:
                         data = await response.json()
-                        _LOGGER.debug("Data: %s", data)
+                        _LOGGER.debug("Data received from API for %s: %s", self._location, data)
+
+                        # ===== NOVO: Pridobivanje trenutnih podatkov iz "observation" =====
+                        observation = data.get("observation", {}).get("features", [])
+                        if observation:
+                            obs_days = observation[0].get("properties", {}).get("days", [])
+                            if obs_days and len(obs_days) > 0:
+                                obs_timeline = obs_days[0].get("timeline", [])
+                                if obs_timeline and len(obs_timeline) > 0:
+                                    obs_entry = obs_timeline[0]
+                                    
+                                    self._attr_native_temperature = float(obs_entry.get("t", 0))
+                                    self._attr_native_pressure = float(obs_entry.get("msl", 0))
+                                    raw_obs_condition = obs_entry.get("clouds_icon_wwsyn_icon", "").strip().lower()
+                                    _LOGGER.debug("Observation raw condition for %s: '%s'", self._location, raw_obs_condition)
+                                    if raw_obs_condition:
+                                        self._attr_condition = CLOUD_CONDITION_MAP.get(raw_obs_condition, "unknown")
+                                    else:
+                                        self._attr_condition = None
+                                    
+                                    obs_cloud_text = obs_entry.get("clouds_shortText", "jasno").strip().lower()
+                                    self._attr_cloud_coverage = CLOUD_COVERAGE_MAP.get(obs_cloud_text, 0)
+                                else:
+                                    _LOGGER.warning("No timeline data in observation for %s", self._location)
+                            else:
+                                _LOGGER.warning("No days data in observation for %s", self._location)
+                        else:
+                            _LOGGER.warning("No observation data available for %s, falling back to forecast1h", self._location)
+                            # Fallback: Uporabimo podatke iz forecast1h
+                            forecast1h = data.get("forecast1h", {}).get("features", [])
+                            if forecast1h:
+                                first_entry = forecast1h[0].get("properties", {}).get("days", [])[0]["timeline"][0]
+                                self._attr_native_temperature = float(first_entry.get("t", 0))
+                                self._attr_native_pressure = float(first_entry.get("msl", 0))
+                                raw_fcast_condition = first_entry.get("clouds_icon_wwsyn_icon", "").strip().lower()
+                                _LOGGER.debug("Fallback - raw condition from forecast1h for %s: '%s'", self._location, raw_fcast_condition)
+                                if raw_fcast_condition:
+                                    self._attr_condition = CLOUD_CONDITION_MAP.get(raw_fcast_condition, "unknown")
+                                else:
+                                    self._attr_condition = None
+                                # Fallback: cloud_coverage iz forecast1h
+                                fallback_cloud_text = first_entry.get("clouds_shortText", "jasno").strip().lower()
+                                self._attr_cloud_coverage = CLOUD_COVERAGE_MAP.get(fallback_cloud_text, 0)
+                            else:
+                                _LOGGER.warning("No forecast1h data available for %s", self._location)
+
+                        # Preostali podatki pridobimo iz forecast1h (npr. vlažnost, veter, itd.)
                         forecast1h = data.get("forecast1h", {}).get("features", [])
                         if forecast1h:
                             first_entry = forecast1h[0].get("properties", {}).get("days", [])[0]["timeline"][0]
-                            self._attr_native_temperature = float(first_entry.get("t", 0))
                             self._attr_humidity = float(first_entry.get("rh", 0))
-                            self._attr_native_pressure = float(first_entry.get("msl", 0))
                             self._attr_native_wind_speed = float(first_entry.get("ff_val", 0))
                             self._attr_native_wind_gust_speed = float(first_entry.get("ffmax_val", 0) or 0)
                             self._attr_wind_bearing = WIND_DIRECTION_MAP.get(first_entry.get("dd_shortText", ""), "")
-                            condition = first_entry.get("clouds_icon_wwsyn_icon", "").lower()
-                            self._attr_condition = CLOUD_CONDITION_MAP.get(condition, "unknown")
-                            _LOGGER.debug(
-                                "Updated current state from forecast1h - Temperature: %s, Condition: %s, Wind Gust Speed: %s",
-                                self._attr_native_temperature,
-                                self._attr_condition,
-                                self._attr_native_wind_gust_speed,
-                            )
+                            # Če je cloud_coverage še vedno ni nastavljen (v primeru, da ni bilo podatkov v observation)
+                            if self._attr_cloud_coverage is None:
+                                cloud_text = first_entry.get("clouds_shortText", "jasno").strip().lower()
+                                self._attr_cloud_coverage = CLOUD_COVERAGE_MAP.get(cloud_text, 0)
                         else:
-                            _LOGGER.warning("No forecast1h data available.")
-                        await self._fetch_forecasts()
-            if self._station_code:
-                try:
-                    rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
-                    feed_content = await self._fetch_rss_feed(rss_url)
-                    if feed_content:
-                        feed = await asyncio.to_thread(feedparser.parse, feed_content)
-                        entry = feed.entries[0]
-                        details = self._extract_weather_details(entry)
+                            _LOGGER.warning("No forecast1h data available for %s", self._location)
 
-                        if 'native_dew_point' in details:
-                            self._attr_native_dew_point = float(details['native_dew_point'])
-                        if 'native_visibility' in details:
-                            self._attr_native_visibility = float(details['native_visibility'])
-                            self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
+                        # Fetch UTCI data for apparent temperature
+                        utci_value = await fetch_utci_data(self.hass, self._location)
+                        if utci_value is not None:
+                            self._attr_native_apparent_temperature = round(utci_value, 1)
+                        else:
+                            self._attr_native_apparent_temperature = self._attr_native_temperature
+                            _LOGGER.warning("UTCI data unavailable for %s, using temperature instead", self._location)
+                        _LOGGER.debug("Final apparent temperature for %s: %s", self._location, self._attr_native_apparent_temperature)
+
+                        await self._fetch_forecasts()
+
                     else:
-                        _LOGGER.info(f"No RSS feed available for location {self._location}.")
-                except Exception as e:
-                    _LOGGER.warning(f"Unable to fetch RSS feed for {self._location}, skipping: {e}")
+                        _LOGGER.warning("Failed to fetch data from API for %s: HTTP %s", self._location, response.status)
+        except Exception as err:
+            _LOGGER.error("Exception during update for %s: %s", self._location, err)
+
+        if self._station_code:
+            try:
+                rss_url = f"https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/{self._station_code}_latest.rss"
+                _LOGGER.debug("Fetching RSS data from: %s", rss_url)
+                feed_content = await self._fetch_rss_feed(rss_url)
+                if feed_content:
+                    feed = await asyncio.to_thread(feedparser.parse, feed_content)
+                    entry = feed.entries[0]
+                    details = self._extract_weather_details(entry)
+                    _LOGGER.debug("Extracted RSS details for %s: %s", self._location, details)
+                    if "native_dew_point" in details:
+                        self._attr_native_dew_point = float(details["native_dew_point"])
+                    if "native_visibility" in details:
+                        self._attr_native_visibility = float(details["native_visibility"])
+                        self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
+                    _LOGGER.debug("RSS Data for %s - Dew Point: %s, Visibility: %s", self._location, self._attr_native_dew_point, self._attr_native_visibility)
+                else:
+                    _LOGGER.info("No RSS feed available for location %s", self._location)
+            except Exception as e:
+                _LOGGER.warning("Unable to fetch RSS feed for %s, skipping: %s", self._location, e)
+        else:
+            _LOGGER.info("No RSS feed available for location %s", self._location)
+
+        try:
+            from .air import normalize_location
+            location_normalized = normalize_location(self._location)
+            _LOGGER.debug("Fetching air quality data for %s (normalized: %s)", self._location, location_normalized)
+            air_quality_data = await fetch_air_quality_data()
+            _LOGGER.debug("Air quality data received for %s: %s", self._location, air_quality_data)
+            if air_quality_data and location_normalized in air_quality_data:
+                ozone_value = air_quality_data[location_normalized].get("o3")
+                if ozone_value is not None:
+                    try:
+                        self._attr_ozone = float(ozone_value)
+                        _LOGGER.info("Ozone value for %s: %s µg/m³", self._location, self._attr_ozone)
+                    except (ValueError, TypeError) as e:
+                        _LOGGER.warning("Invalid ozone value for %s: %s | Error: %s", self._location, ozone_value, e)
+                        self._attr_ozone = None
+                else:
+                    _LOGGER.warning("No ozone data available for %s", self._location)
+                    self._attr_ozone = None
+                _LOGGER.debug("Final ozone value for %s: %s", self._location, self._attr_ozone)
             else:
-                _LOGGER.info(f"No RSS feed available for location {self._location}.")
+                _LOGGER.warning("No air quality data available for %s (normalized: %s)", self._location, location_normalized)
+                self._attr_ozone = None
         except Exception as e:
-            _LOGGER.error("Unhandled error during update for %s: %s", self._location, e, exc_info=True)
+            _LOGGER.error("Error fetching ozone data for %s: %s", self._location, e)
+            self._attr_ozone = None
 
     async def _fetch_forecasts(self):
-        """Fetch daily, hourly, and simulated twice-daily forecast data."""
+        """Fetch daily, hourly, and twice daily forecast data."""
         _LOGGER.debug("Fetching forecast data for location: %s", self._location)
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://vreme.arso.gov.si/api/1.0/location/?location={self._location}") as response:
+                async with session.get(f"{API_URL}?location={self._location}") as response:
                     if response.status == 200:
                         forecast_data = await response.json()
-                        _LOGGER.debug("API Response: %s", forecast_data)
+                        _LOGGER.debug("Forecast API response for %s: %s", self._location, forecast_data)
 
                         self._hourly_forecast = self._process_hourly_forecast(forecast_data)
-                        _LOGGER.debug("Hourly forecast processed: %s", self._hourly_forecast)
+                        _LOGGER.debug("Hourly forecast processed for %s: %s", self._location, self._hourly_forecast)
 
-                        self._daily_forecast = self._process_daily_forecast(forecast_data)
-                        _LOGGER.debug("Daily forecast processed: %s", self._daily_forecast)
+                        self._daily_forecast = await self._process_daily_forecast(forecast_data)
+                        _LOGGER.debug("Daily forecast processed for %s: %s", self._location, self._daily_forecast)
+
+                        self._daily_forecast = await self._async_add_uv_to_daily_forecast(self._daily_forecast)
+                        _LOGGER.debug("Daily forecast with UV index for %s: %s", self._location, self._daily_forecast)
 
                         self._twice_daily_forecast = self._process_twice_daily_forecast(forecast_data)
-                        _LOGGER.debug("Twice daily forecast processed: %s", self._twice_daily_forecast)
+                        _LOGGER.debug("Twice daily forecast processed for %s: %s", self._location, self._twice_daily_forecast)
                     else:
-                        _LOGGER.warning("Failed to fetch forecast data. HTTP Status: %s", response.status)
+                        _LOGGER.warning("Failed to fetch forecast data for %s. HTTP Status: %s", self._location, response.status)
         except Exception as e:
             _LOGGER.error("Error fetching forecast data for location %s: %s", self._location, e, exc_info=True)
+
     def _process_hourly_forecast(self, forecast_data):
-            """Process the hourly forecast data."""
-            hourly_forecasts = []
-            forecast1h = forecast_data.get("forecast1h", {}).get("features", [])
-            if forecast1h:
-                for day in forecast1h[0].get("properties", {}).get("days", []):
-                    for entry in day.get("timeline", []):
-                        forecast_time = as_local(datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC))
-                        if (forecast_time - datetime.now(pytz.UTC)).total_seconds() <= 24 * 3600:
-                            _LOGGER.debug("1h Forecast - UTC time: %s, Local time: %s, Temperature: %s", 
-                                        entry["valid"], forecast_time, entry.get("t"))
+        """Process the hourly forecast data."""
+        hourly_forecasts = []
+        forecast1h = forecast_data.get("forecast1h", {}).get("features", [])
+        if forecast1h:
+            for day in forecast1h[0].get("properties", {}).get("days", []):
+                for entry in day.get("timeline", []):
+                    forecast_time = as_local(datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC))
+                    if (forecast_time - datetime.now(pytz.UTC)).total_seconds() <= 24 * 3600:
+                        _LOGGER.debug("1h Forecast for %s - UTC: %s, Local: %s, Temp: %s", self._location, entry["valid"], forecast_time, entry.get("t"))
+                        hourly_forecasts.append({
+                            "datetime": forecast_time.isoformat(),
+                            "temperature": float(entry.get("t", 0)),
+                            "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").strip().lower(), "unknown"),
+                            "native_wind_speed": float(entry.get("ff_val", 0)),
+                            "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
+                            "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
+                            "precipitation": float(entry.get("tp_acc", 0)),
+                            "snowfall": float(entry.get("sn_acc", 0)),
+                            "cloud_coverage": CLOUD_COVERAGE_MAP.get(entry.get("clouds_shortText", "jasno").strip().lower(), 0)
+                        })
+        forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
+        if forecast3h:
+            for day in forecast3h[0].get("properties", {}).get("days", []):
+                for entry in day.get("timeline", []):
+                    forecast_time = datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC)
+                    if (forecast_time - datetime.now(pytz.UTC)).total_seconds() > 24 * 3600:
+                        _LOGGER.debug("3h Forecast for %s - UTC: %s, Temp: %s", self._location, entry["valid"], entry.get("t"))
+                        hourly_forecasts.append({
+                            "datetime": forecast_time.isoformat(),
+                            "temperature": float(entry.get("t", 0)),
+                            "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").strip().lower(), "unknown"),
+                            "native_wind_speed": float(entry.get("ff_val", 0)),
+                            "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
+                            "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
+                            "precipitation": float(entry.get("tp_acc", 0)),
+                            "snowfall": float(entry.get("sn_acc", 0)),
+                            "cloud_coverage": CLOUD_COVERAGE_MAP.get(entry.get("clouds_shortText", "jasno").strip().lower(), 0)
+                        })
+        _LOGGER.debug("Processed Hourly Forecasts for %s: %s", self._location, hourly_forecasts)
+        return hourly_forecasts
 
-                            hourly_forecasts.append({
-                                "datetime": forecast_time.isoformat(),
-                                "temperature": float(entry.get("t", 0)),
-                                "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                                "native_wind_speed": float(entry.get("ff_val", 0)),
-                                "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
-                                "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
-                                "precipitation": float(entry.get("tp_acc", 0)),
-                                "snowfall": float(entry.get("sn_acc", 0)),
-                            })
-            forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
-            if forecast3h:
-                for day in forecast3h[0].get("properties", {}).get("days", []):
-                    for entry in day.get("timeline", []):
-                        forecast_time = datetime.fromisoformat(entry["valid"]).astimezone(pytz.UTC)
-                        if (forecast_time - datetime.now(pytz.UTC)).total_seconds() > 24 * 3600:
-                            _LOGGER.debug("3h Forecast - UTC time: %s, Temperature: %s", 
-                                        entry["valid"], entry.get("t"))
-                            hourly_forecasts.append({
-                                "datetime": forecast_time.isoformat(),
-                                "temperature": float(entry.get("t", 0)),
-                                "condition": CLOUD_CONDITION_MAP.get(entry.get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                                "native_wind_speed": float(entry.get("ff_val", 0)),
-                                "native_wind_gust_speed": float(entry.get("ffmax_val", 0) or 0),
-                                "wind_bearing": WIND_DIRECTION_MAP.get(entry.get("dd_shortText", ""), ""),
-                                "precipitation": float(entry.get("tp_acc", 0)),
-                                "snowfall": float(entry.get("sn_acc", 0)),
-                            })
-            _LOGGER.debug("Processed Hourly Forecasts (1h + 3h): %s", hourly_forecasts)
-            return hourly_forecasts
-
-    def _process_daily_forecast(self, forecast_data):
-        """Process the daily forecast data."""
+    async def _process_daily_forecast(self, forecast_data):
+        """Process the daily forecast data and include UV index."""
         daily_forecasts = []
-
+        from .uv_index import fetch_uv_index, fetch_location_coords
+        coords = await fetch_location_coords(self._location, LOCATIONS_URL)
+        if coords:
+            lat, lon = coords
+            uv_index = await fetch_uv_index(lat, lon)
+            _LOGGER.debug("UV index for daily forecast for %s: %s", self._location, uv_index)
+        else:
+            uv_index = None
+            _LOGGER.warning("Coordinates not found for %s; UV index will not be added", self._location)
         for day in forecast_data["forecast24h"]["features"][0]["properties"]["days"]:
             try:
                 forecast_time = day["date"]
-
                 precipitation = float(day["timeline"][0].get("tp_24h_acc", 0))
                 snowfall = float(day["timeline"][0].get("sn_24h_acc", 0))
-
                 min_temp = float(day["timeline"][0].get("tnsyn", 0))
                 max_temp = float(day["timeline"][0].get("txsyn", 0))
-
-                # Wind
                 wind_speed = float(day["timeline"][0].get("ff_val", 0))
                 wind_bearing = WIND_DIRECTION_MAP.get(day["timeline"][0].get("dd_shortText", ""), "")
-
-                # Wind gusts
                 gust_speed_raw = day["timeline"][0].get("ffmax_val", 0)
                 gust_speed = float(gust_speed_raw) if gust_speed_raw and gust_speed_raw.strip() != "" else 0
-
-                # Weather condition
-                condition = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").lower()
+                condition = day["timeline"][0].get("clouds_icon_wwsyn_icon", "").strip().lower()
                 condition_translated = CLOUD_CONDITION_MAP.get(condition, "unknown")
-                daily_forecasts.append({
+                daily_forecast = {
                     "datetime": forecast_time,
                     "temperature": max_temp,
                     "templow": min_temp,
@@ -472,35 +601,34 @@ class ArsoWeather(WeatherEntity):
                     "wind_bearing": wind_bearing,
                     "condition": condition_translated,
                     "pressure": float(day["timeline"][0].get("msl", 0)),
-                })
+                    "cloud_coverage": CLOUD_COVERAGE_MAP.get(day["timeline"][0].get("clouds_shortText", "jasno").strip().lower(), 0)
+                }
+                if uv_index is not None:
+                    daily_forecast["uv_index"] = uv_index
+                daily_forecasts.append(daily_forecast)
             except Exception as e:
-                _LOGGER.error("Error processing daily forecast for day %s: %s", day, e, exc_info=True)
-        _LOGGER.debug("Processed Daily Forecasts: %s", daily_forecasts)
+                _LOGGER.error("Error processing daily forecast for day %s for %s: %s", day, self._location, e, exc_info=True)
+        _LOGGER.debug("Processed Daily Forecasts with UV Index for %s: %s", self._location, daily_forecasts)
         return daily_forecasts[:11]
-        
-    def _process_twice_daily_forecast(self, forecast_data):
-        """Extract twice daily forecast with templow, temperature, wind gust speed, wind speed, wind bearing, precipitation, and snow accumulation."""
-        _LOGGER.debug("Starting twice daily forecast processing...")
-        twice_daily_forecasts = []
 
+    def _process_twice_daily_forecast(self, forecast_data):
+        """Extract twice daily forecast (morning and evening)."""
+        _LOGGER.debug("Starting twice daily forecast processing for %s", self._location)
+        twice_daily_forecasts = []
         now = datetime.now(tz=pytz.UTC)
         max_forecast_date = (now + timedelta(days=5)).date()
-
         forecast3h = forecast_data.get("forecast3h", {}).get("features", [])
         if forecast3h:
-            _LOGGER.debug("Processing 3-hourly forecast data.")
+            _LOGGER.debug("Processing 3-hourly forecast data for %s", self._location)
             days = forecast3h[0].get("properties", {}).get("days", [])
             for day in days:
                 day_date = datetime.strptime(day["date"], "%Y-%m-%d").date()
                 if day_date > max_forecast_date:
                     continue
-
                 timeline = day.get("timeline", [])
-
                 # Morning forecast (6:00–12:00)
                 morning_entries = [
-                    entry for entry in timeline
-                    if datetime.fromisoformat(entry["valid"]).hour in range(6, 12)
+                    entry for entry in timeline if datetime.fromisoformat(entry["valid"]).hour in range(6, 12)
                 ]
                 if morning_entries:
                     morning_templow = min(float(entry.get("t", 0)) for entry in morning_entries)
@@ -520,14 +648,13 @@ class ArsoWeather(WeatherEntity):
                         "wind_bearing": WIND_DIRECTION_MAP.get(morning_wind_bearing, ""),
                         "precipitation": morning_precipitation,
                         "snow_accumulation": morning_snow_accumulation,
-                        "condition": CLOUD_CONDITION_MAP.get(morning_entries[0].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        "is_daytime": True,  # Morning is always daytime
+                        "condition": CLOUD_CONDITION_MAP.get(morning_entries[0].get("clouds_icon_wwsyn_icon", "").strip().lower(), "unknown"),
+                        "is_daytime": True,
+                        "cloud_coverage": CLOUD_COVERAGE_MAP.get(morning_entries[0].get("clouds_shortText", "jasno").strip().lower(), 0)
                     })
-
                 # Evening forecast (12:00–18:00)
                 evening_entries = [
-                    entry for entry in timeline
-                    if datetime.fromisoformat(entry["valid"]).hour in range(12, 18)
+                    entry for entry in timeline if datetime.fromisoformat(entry["valid"]).hour in range(12, 18)
                 ]
                 if evening_entries:
                     evening_templow = min(float(entry.get("t", 0)) for entry in evening_entries)
@@ -547,11 +674,11 @@ class ArsoWeather(WeatherEntity):
                         "wind_bearing": WIND_DIRECTION_MAP.get(evening_wind_bearing, ""),
                         "precipitation": evening_precipitation,
                         "snow_accumulation": evening_snow_accumulation,
-                        "condition": CLOUD_CONDITION_MAP.get(evening_entries[-1].get("clouds_icon_wwsyn_icon", "").lower(), "unknown"),
-                        "is_daytime": False,  # Evening is always nighttime
+                        "condition": CLOUD_CONDITION_MAP.get(evening_entries[-1].get("clouds_icon_wwsyn_icon", "").strip().lower(), "unknown"),
+                        "is_daytime": False,
+                        "cloud_coverage": CLOUD_COVERAGE_MAP.get(evening_entries[-1].get("clouds_shortText", "jasno").strip().lower(), 0)
                     })
-
-        _LOGGER.debug("Completed twice daily forecast processing: %s", twice_daily_forecasts)
+        _LOGGER.debug("Completed twice daily forecast processing for %s: %s", self._location, twice_daily_forecasts)
         return twice_daily_forecasts
 
     async def async_forecast_hourly(self):
@@ -560,16 +687,24 @@ class ArsoWeather(WeatherEntity):
 
     async def async_forecast_daily(self):
         """Return the daily forecast."""
-        return self._daily_forecast
-        
+        return self._daily_forecast if self._daily_forecast is not None else []
+
     async def async_forecast_twice_daily(self):
         """Return the twice daily forecast."""
-        _LOGGER.debug("Returning twice daily forecast: %s", self._twice_daily_forecast)
-        return self._twice_daily_forecast
+        return self._twice_daily_forecast if self._twice_daily_forecast is not None else []
 
-    def _map_condition(self, clouds_short_text):
-        """Map ARSO cloud conditions to Home Assistant weather conditions."""
-        return CLOUD_CONDITION_MAP.get(clouds_short_text.lower(), "unknown")
+    def _extract_weather_details(self, entry):
+        details = {}
+        patterns = {
+            "native_dew_point": r"Temperatura rosišča:\s*(-?\d+\.?\d*)\s*°C",
+            "native_visibility": r"Vidnost:\s*(\d+\.?\d*)\s*km",
+        }
+        combined_text = f"{entry.title} {entry.summary}"
+        for key, pattern in patterns.items():
+            match = re.search(pattern, combined_text)
+            if match:
+                details[key] = match.group(1)
+        return details
 
     async def _fetch_rss_feed(self, url):
         async with aiohttp.ClientSession() as session:
@@ -580,15 +715,26 @@ class ArsoWeather(WeatherEntity):
                 response.raise_for_status()
                 return await response.text()
 
-    def _extract_weather_details(self, entry):
-        details = {}
-        patterns = {
-            'native_dew_point': r'Temperatura rosišča:\s*(-?\d+\.?\d*)\s*°C',
-            'native_visibility': r'Vidnost:\s*(\d+\.?\d*)\s*km',
-        }
-        combined_text = f"{entry.title} {entry.summary}"
-        for key, pattern in patterns.items():
-            match = re.search(pattern, combined_text)
-            if match:
-                details[key] = match.group(1)
-        return details
+    async def _async_add_uv_to_daily_forecast(self, daily_forecasts: list) -> list:
+        from .uv_index import fetch_daily_uv_forecast, fetch_location_coords
+        coords = await fetch_location_coords(self._location, LOCATIONS_URL)
+        if not coords:
+            _LOGGER.warning("Coordinates not found for %s; UV forecast not added", self._location)
+            return daily_forecasts
+        lat, lon = coords
+        uv_forecast = await fetch_daily_uv_forecast(lat, lon)
+        if not uv_forecast:
+            _LOGGER.warning("UV forecast not available for %s", self._location)
+            return daily_forecasts
+        _LOGGER.debug("UV forecast data for %s: %s", self._location, uv_forecast)
+        for forecast in daily_forecasts:
+            forecast_date = forecast.get("datetime")
+            if isinstance(forecast_date, datetime):
+                forecast_date = forecast_date.strftime("%Y-%m-%d")
+            for uv_entry in uv_forecast:
+                uv_date = uv_entry.get("date")
+                if forecast_date == uv_date:
+                    forecast["uv_index"] = uv_entry.get("uv_index")
+                    break
+        _LOGGER.debug("Daily forecasts after adding UV for %s: %s", self._location, daily_forecasts)
+        return daily_forecasts
