@@ -1,28 +1,22 @@
 import logging
 from homeassistant.helpers.entity_registry import async_get
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from .const import LOCATION_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Remove all sensors for a specific location."""
-    location = config_entry.data.get("location").lower().replace(" ", "_")
-    registry = async_get(hass)
+def normalize_location(location):
+    """Normalizira ime lokacije, da se ujema z ARSO podatki."""
+    location = location.lower().replace(" ", "_")
+    return LOCATION_MAPPING.get(location, location)
 
-    for entity_id in list(hass.states.async_entity_ids("sensor")):
-        if entity_id.startswith(f"sensor.arso_weather_{location}"):
-            registry.async_remove(entity_id)
-            _LOGGER.info("Removed sensor: %s", entity_id)
+async def async_remove_sensors(hass, domain):
+    """Asinhrono odstrani vse senzorje povezane z domeno."""
+    entity_registry = await async_get(hass)
+    entities = list(entity_registry.entities.keys())
 
-async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Remove sensors for a specific location."""
-    _LOGGER.debug("Attempting to remove sensors for entry: %s", config_entry.entry_id)
-    location = config_entry.data.get("location").lower().replace(" ", "_")
-    registry = async_get(hass)
+    for entity_id in entities:
+        if entity_id.startswith(f"sensor.{domain}"):
+            _LOGGER.info("🗑️ Odstranjujem senzor: %s", entity_id)
+            entity_registry.async_remove(entity_id)
 
-    for entity_id in list(hass.states.async_entity_ids("sensor")):
-        if entity_id.startswith(f"sensor.arso_weather_{location}"):
-            _LOGGER.debug("Removing sensor: %s", entity_id)
-            registry.async_remove(entity_id)
-            _LOGGER.info("Removed sensor: %s", entity_id)
+    _LOGGER.info("Vsi senzorji za domeno %s odstranjeni.", domain)
