@@ -7,8 +7,6 @@ from .helpers import async_remove_sensors
 from homeassistant.core import callback
 from .config_flow import OptionsFlowHandler
 import logging
-from homeassistant.config_entries import ConfigEntry, OptionsFlow
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     if config_entry.entry_id in hass.data[DOMAIN]:
         _LOGGER.warning(
-            "Config entry %s for %s has already been setup!",
+            "Config entry %s for %s has already been set up!",
             config_entry.title,
             DOMAIN,
         )
@@ -34,7 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     hass.data[DOMAIN][config_entry.entry_id] = {}
 
-    platforms = ["sensor", "weather"]
+    platforms = ["weather", "camera", "sensor"]
     try:
         await hass.config_entries.async_forward_entry_setups(config_entry, platforms)
     except Exception as e:
@@ -46,17 +44,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload ARSO Weather config entry."""
     platforms = entry.data.get("platforms", DEFAULT_PLATFORMS)
+    _LOGGER.debug("Unloading platforms %s for entry %s", platforms, entry.entry_id)
+    
+    # Poskusi odklopiti vse platforme hkrati
+    unload_results = await asyncio.gather(
+        *[hass.config_entries.async_forward_entry_unload(entry, platform) for platform in platforms],
+        return_exceptions=True
+    )
+    
     unload_ok = True
-
-    for platform in platforms:
-        try:
-            _LOGGER.debug("Unloading platform %s for entry: %s", platform, entry.entry_id)
-            platform_unloaded = await hass.config_entries.async_forward_entry_unload(entry, platform)
-            if not platform_unloaded:
-                _LOGGER.warning("Platform %s for entry %s was not fully unloaded", platform, entry.entry_id)
-            unload_ok = unload_ok and platform_unloaded
-        except Exception as e:
-            _LOGGER.error("Error unloading platform %s for entry %s: %s", platform, entry.entry_id, e, exc_info=True)
+    for platform, result in zip(platforms, unload_results):
+        if isinstance(result, Exception):
+            _LOGGER.error("Error unloading platform %s for entry %s: %s", platform, entry.entry_id, result, exc_info=True)
+            unload_ok = False
+        elif result is not True:
+            _LOGGER.warning("Platform %s for entry %s was not fully unloaded", platform, entry.entry_id)
             unload_ok = False
 
     if unload_ok:
@@ -68,18 +70,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-    platforms = entry.options.get("platforms", entry.data.get("platforms", []))
+    """Update listener to reload platforms if options change."""
+    platforms = entry.options.get("platforms", entry.data.get("platforms", ["sensor", "weather", "camera"]))
     current_platforms = entry.data.get("platforms", [])
+
     _LOGGER.debug("Update listener triggered for entry: %s", entry.entry_id)
     _LOGGER.debug("Updated platforms: %s", platforms)
 
+    # Unload removed platforms
     for platform in current_platforms:
         if platform not in platforms:
             await hass.config_entries.async_forward_entry_unload(entry, platform)
 
-    for platform in platforms:
-        if platform not in current_platforms:
-            await hass.config_entries.async_forward_entry_setups(entry, [platform])
+    # Load newly added platforms
+    await hass.config_entries.async_forward_entry_setups(entry, platforms)
 
     hass.config_entries.async_update_entry(entry, options={"platforms": platforms})
 
