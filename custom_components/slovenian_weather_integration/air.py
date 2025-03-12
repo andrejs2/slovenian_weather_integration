@@ -1,5 +1,4 @@
 
-
 """
 AQI senzor za ARSO – Air Quality Sensor
 
@@ -42,7 +41,11 @@ STATION_MAPPING = {
     "Trbovlje": ["Trbovlje"],
     "Zagorje": ["Zagorje"],
     "Hrastnik": ["Hrastnik"],
-    "Črnomelj": ["Črnomelj"],
+    "Črnomelj": ["Črnomelj Loka"],
+    "Ilirska Bistrica": ["I.Bistrica Gregorčičeva"],
+    "Iskrba": ["Iskrba"],
+    "Krvavec": ["Krvavec"],
+    "Otlica": ["Otlica"],
 }
 
 # Onesnaževalci, za katere zbiram podatke
