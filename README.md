@@ -124,6 +124,10 @@ Apologies for any inconvenience caused, and thank you for your understanding!
 3. Search for **ARSO Weather Integration**.
 4. Follow the prompts to select your desired location(s).
 
+Note: There are two types of locations: 
+  - Main observation locations with detailed measurements ([Visible on this map](https://meteo.arso.gov.si/uploads/meteo/app/amsview/?params=t,rh,ffavg_val,ffmax_val,msl,tp_acc,snow,tp_12h_acc,tw,gSunRadavg,diffSunRadavg,vis_val&lon=15.11848012616623&lat=45.97045629929457&zoom=8.126735333141523&sliderHours=6))
+  - Secondary locations which only includes basic measurements like temperature, wind speed and forecasts
+
 ---
 
 ## 🌟 Supported Features
