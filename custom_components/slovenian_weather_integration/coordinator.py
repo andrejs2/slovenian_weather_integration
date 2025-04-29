@@ -20,7 +20,7 @@ from homeassistant.const import CONF_LOCATION
 _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL = timedelta(minutes=2)
-REQUEST_TIMEOUT = 25
+REQUEST_TIMEOUT = 120
 
 # Define the type of data the coordinator will hold
 CoordinatorDataType = dict[str, list]
