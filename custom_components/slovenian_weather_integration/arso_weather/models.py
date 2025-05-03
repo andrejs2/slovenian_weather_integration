@@ -556,7 +556,7 @@ class ObservationDetails(BaseTimelineEntry):  # Inherits from BaseTimelineEntry
 
     @computed_field
     @property
-    def precipitation_rate(self) -> Optional[str]:
+    def precipitation_rate(self) -> Optional[float]:
         """
         Precipitation is provided as mm in 10 minutes. This converts it to mm/h.
         """
