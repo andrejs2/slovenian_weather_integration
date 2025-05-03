@@ -216,7 +216,7 @@ class ArsoWeatherEntity(CoordinatorEntity[ArsoDataUpdateCoordinator], WeatherEnt
                 {k: v for k, v in forecast_entry.items() if v is not None}
             )
 
-        return ha_forecast[:11]
+        return ha_forecast
 
     async def async_forecast_daily(self) -> list[Forecast] | None:
         """Return the hourly forecast."""
@@ -250,7 +250,7 @@ class ArsoWeatherEntity(CoordinatorEntity[ArsoDataUpdateCoordinator], WeatherEnt
                 {k: v for k, v in forecast_entry.items() if v is not None}
             )
 
-        return ha_forecast[:11]
+        return ha_forecast
 
     # --- Forecast Processing Method ---
     async def async_forecast_twice_daily(self) -> list[Forecast] | None:
@@ -267,7 +267,7 @@ class ArsoWeatherEntity(CoordinatorEntity[ArsoDataUpdateCoordinator], WeatherEnt
         ha_forecast: list[Forecast] = []
 
         max_forecast_date = (
-            datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=3)
+            datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=4)
         ).date()
 
         for i, item in enumerate(forecast_list):
@@ -292,29 +292,59 @@ class ArsoWeatherEntity(CoordinatorEntity[ArsoDataUpdateCoordinator], WeatherEnt
             forecast_entry: Forecast = {
                 ATTR_FORECAST_IS_DAYTIME: True if hour == 9 else False,
                 ATTR_FORECAST_TIME: item.valid_time.isoformat(),
-                ATTR_FORECAST_TEMP: max([f.temperature for f in half_day_forecasts]),
+                ATTR_FORECAST_TEMP: max(
+                    [
+                        f.temperature
+                        for f in half_day_forecasts
+                        if f.temperature is not None
+                    ]
+                ),
                 ATTR_FORECAST_TEMP_LOW: min(
-                    [f.temperature for f in half_day_forecasts]
+                    [
+                        f.temperature
+                        for f in half_day_forecasts
+                        if f.temperature is not None
+                    ]
                 ),
                 ATTR_FORECAST_PRECIPITATION: sum(
-                    [f.accumulated_precipitation_mm for f in half_day_forecasts]
+                    [
+                        f.accumulated_precipitation_mm
+                        for f in half_day_forecasts
+                        if f.accumulated_precipitation_mm is not None
+                    ]
                 ),
                 ATTR_FORECAST_CONDITION: condition_to_night_time(
                     main_half_day_forecast.home_assistant_weather_condition,
                     dt=main_half_day_forecast.valid_time,
                 ),
                 ATTR_FORECAST_WIND_SPEED: max(
-                    [f.wind_speed_kmh for f in half_day_forecasts]
+                    [
+                        f.wind_speed_kmh
+                        for f in half_day_forecasts
+                        if f.wind_speed_kmh is not None
+                    ]
                 ),
                 ATTR_FORECAST_WIND_BEARING: main_half_day_forecast.wind_direction_text,
                 ATTR_FORECAST_HUMIDITY: max(
-                    [f.relative_humidity_percent for f in half_day_forecasts]
+                    [
+                        f.relative_humidity_percent
+                        for f in half_day_forecasts
+                        if f.relative_humidity_percent is not None
+                    ]
                 ),
                 ATTR_FORECAST_PRESSURE: max(
-                    [f.mean_sea_level_pressure_hpa for f in half_day_forecasts]
+                    [
+                        f.mean_sea_level_pressure_hpa
+                        for f in half_day_forecasts
+                        if f.mean_sea_level_pressure_hpa is not None
+                    ]
                 ),
                 "snow_precipitation": sum(
-                    [f.accumulated_snow_mm for f in half_day_forecasts]
+                    [
+                        f.accumulated_snow_mm
+                        for f in half_day_forecasts
+                        if f.accumulated_snow_mm is not None
+                    ]
                 ),
             }
             ha_forecast.append(
