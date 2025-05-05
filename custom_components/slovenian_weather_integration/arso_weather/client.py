@@ -9,7 +9,6 @@ from .models import (
     merge_observation_data,
     MODEL_MAPPING,
 )
-from .exceptions import ArsoApiError, ArsoDataError
 from .station_map import OBSERVATION_STATIONS
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,9 +72,11 @@ class ArsoWeather:
             ],
         )
         # Basic observation data is always available
-        observation = ObservationTimelineEntry.model_validate(
-            official_data_parsed.pop("observation")[0]
-        )
+        if official_data_observation := official_data_parsed.pop("observation"):
+            official_data_observation = official_data_observation[0]
+        else:
+            official_data_observation = {}
+        observation = ObservationTimelineEntry.model_validate(official_data_observation)
 
         if self.location_id:  # Only if specified location is primary location of ARSO
             primary_station_url = PRIMARY_STATION_BASE_URL.format(
@@ -122,12 +123,10 @@ class ArsoWeather:
                 return data
         except aiohttp.ClientResponseError as e:
             _LOGGER.error(f"API request failed: {e.status} {e.message}")
-            raise ArsoApiError(status_code=e.status, message=e.message) from e
+            return {}
         except aiohttp.ClientError as e:
             _LOGGER.error(f"Client error during API request: {e}")
-            raise ArsoApiError(
-                status_code=0, message=str(e)
-            ) from e  # Status 0 for client-side errors
+            return {}
 
     async def parse_primary_weather_data(self, data: dict) -> dict:
         """Parse the primary weather data from the JSON file."""
@@ -139,12 +138,10 @@ class ArsoWeather:
 
         except (KeyError, IndexError, TypeError) as e:
             _LOGGER.error(f"Failed to extract data from response structure: {e}")
-            raise ArsoDataError(
-                f"Could not find expected data structure in API response: {e}"
-            ) from e
+            return {}
         except Exception as e:  # Catch Pydantic validation errors or others
             _LOGGER.error(f"Failed to validate API data: {e}")
-            raise ArsoDataError(f"Data validation failed: {e}") from e
+            return {}
 
     async def parse_official_weather_data(
         self,
@@ -156,11 +153,10 @@ class ArsoWeather:
         ],
     ) -> dict[str, list]:
         try:
-            out = {}
+            out = {k: [] for k in target_keys}  # create empty response
             for forecast_type, val in data.items():
                 if forecast_type not in target_keys:
                     continue
-                out[forecast_type] = []
                 for days in val["features"][0]["properties"]["days"]:
                     out[forecast_type] += days["timeline"]
                 _LOGGER.debug(
@@ -169,13 +165,10 @@ class ArsoWeather:
             return out
 
         except (KeyError, IndexError, TypeError) as e:
-            _LOGGER.error(f"Failed to extract data from response structure: {e}")
-            raise ArsoDataError(
-                f"Could not find expected data structure in API response: {e}"
-            ) from e
+            return out
         except Exception as e:  # Catch Pydantic validation errors or others
             _LOGGER.error(f"Failed to validate API data: {e}")
-            raise ArsoDataError(f"Data validation failed: {e}") from e
+            return out
 
     async def close(self):
         """Close the underlying aiohttp session if it was created internally."""

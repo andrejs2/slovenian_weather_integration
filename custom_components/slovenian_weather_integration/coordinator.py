@@ -10,10 +10,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 import homeassistant.helpers.aiohttp_client as hass_aiohttp
 
-from .arso_weather import (
-    ArsoWeather,
-    ArsoWeatherError,
-)
+from .arso_weather import ArsoWeather
 
 from homeassistant.const import CONF_LOCATION
 
@@ -76,13 +73,6 @@ class ArsoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorDataType]):
 
             return all_weather_data
 
-        except ArsoWeatherError as err:
-            _LOGGER.error(
-                "Library error fetching ARSO data for %s: %s",
-                location,
-                err,
-            )
-            raise UpdateFailed(f"Library error: {err}") from err
         except TimeoutError as err:
             _LOGGER.warning("Timeout fetching ARSO data for %s", location)
             raise UpdateFailed("API request timed out") from err
