@@ -5,6 +5,9 @@ from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
+### UNUSED ###
+
+
 async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
     """Remove all sensors for a specific location."""
     location = config_entry.data.get("location").lower().replace(" ", "_")
@@ -14,6 +17,7 @@ async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
         if entity_id.startswith(f"sensor.arso_weather_{location}"):
             registry.async_remove(entity_id)
             _LOGGER.info("Removed sensor: %s", entity_id)
+
 
 async def async_remove_sensors(hass: HomeAssistant, config_entry: ConfigEntry):
     """Remove sensors for a specific location."""

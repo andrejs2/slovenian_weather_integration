@@ -1,92 +1,113 @@
-import aiohttp
 import voluptuous as vol
 import logging
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.const import CONF_LOCATION
-from .const import DOMAIN, LOCATIONS_URL
-from typing import Any, Dict 
+from .const import DOMAIN
+from typing import Any, Dict
 from homeassistant.data_entry_flow import FlowResult
-from .helpers import async_remove_sensors
 
 from homeassistant import config_entries
-from homeassistant.helpers import selector
-from .const import DOMAIN
+from .arso_weather import ArsoWeather
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for ARSO Weather."""
 
     VERSION = 1
 
-    async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(
+        self, user_input: Dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle the initial step."""
-        errors = {}
+        errors: Dict[str, str] = {}
 
-        if user_input is not None:
-            _LOGGER.debug("User input received: %s", user_input)
+        # Get the HA-managed session
+        session = async_get_clientsession(self.hass)
 
-            # Check for duplicate locations
-            if any(entry.data[CONF_LOCATION] == user_input[CONF_LOCATION] for entry in self._async_current_entries()):
-                errors["base"] = "location_exists"
-                _LOGGER.warning("Location %s already exists", user_input[CONF_LOCATION])
+        client = ArsoWeather(
+            location_name="Ljubljana",  # just use a default for the initial call to get locations.
+            session=session,
+        )
+
+        locations = []
+        try:
+            # Fetch locations using the client with the HA session
+            locations_raw = await client.get_all_locations()
+            # Basic validation on fetched data
+            if isinstance(locations_raw, list) and all(
+                isinstance(loc, str) for loc in locations_raw
+            ):
+                locations = sorted(locations_raw)  # Sort for better UI
             else:
-                _LOGGER.debug("Creating new entry for location: %s", user_input[CONF_LOCATION])
-                return self.async_create_entry(title=user_input[CONF_LOCATION], data=user_input)
+                _LOGGER.error(
+                    "Fetched locations data is not a list of strings: %s", locations_raw
+                )
+                errors["base"] = "invalid_location_data"
 
-        # Fetch locations and validate
-        locations = await self._fetch_locations()
-        if not locations or "Error" in locations[0]:
-            errors["base"] = "cannot_fetch_locations"
-            _LOGGER.error("Failed to fetch locations: %s", locations)
-            locations = ["Error: No locations found"]
+            if not locations and "base" not in errors:  # Check if list is empty
+                _LOGGER.error("Fetched locations list is empty.")
+                errors["base"] = "no_locations_found"
 
-        schema = vol.Schema({
-            vol.Required(CONF_LOCATION): vol.In(locations)
-        })
+        except Exception as exc:
+            _LOGGER.exception("Error fetching locations: %s", exc)
+            errors["base"] = "cannot_connect"
+
+        # --- handle user input or show form ---
+        if user_input is not None:
+            # Input received, proceed to create entry if no errors during fetch
+            if not errors:
+                # Check if selected location is valid (it should be if vol.In)
+                selected_location = user_input[CONF_LOCATION]
+                if selected_location not in locations:
+                    # This shouldn't happen if vol.In is working correctly
+                    errors["base"] = "invalid_selection"
+                    _LOGGER.error(
+                        "Selected location '%s' not in fetched list.", selected_location
+                    )
+                else:
+                    _LOGGER.debug("Creating entry for location: %s", selected_location)
+                    return self.async_create_entry(
+                        title=selected_location, data=user_input
+                    )
+
+        # If there were errors during fetch, prevent showing the form with bad data
+        if errors and errors.get("base") != "invalid_selection":
+            return self.async_show_form(step_id="user", errors=errors)
+
+        # Define schema using fetched locations (only if no fetch errors)
+        schema = vol.Schema({vol.Required(CONF_LOCATION): vol.In(locations)})
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
-
 
     async def async_step_import(self, import_config: Dict[str, Any]) -> FlowResult:
         """Handle import from configuration.yaml."""
         _LOGGER.debug("Importing config: %s", import_config)
 
-        if any(entry.data[CONF_LOCATION] == import_config[CONF_LOCATION] for entry in self._async_current_entries()):
-            _LOGGER.warning("Location %s already exists, skipping import", import_config[CONF_LOCATION])
+        if any(
+            entry.data[CONF_LOCATION] == import_config[CONF_LOCATION]
+            for entry in self._async_current_entries()
+        ):
+            _LOGGER.warning(
+                "Location %s already exists, skipping import",
+                import_config[CONF_LOCATION],
+            )
             return self.async_abort(reason="location_exists")
 
-        return self.async_create_entry(title=import_config[CONF_LOCATION], data=import_config)
+        return self.async_create_entry(
+            title=import_config[CONF_LOCATION], data=import_config
+        )
 
-    async def _fetch_locations(self):
-        """Fetch the list of locations from the external JSON."""
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(LOCATIONS_URL) as response:
-                    if response.status == 200:
-                        try:
-                            data = await response.json()
-                            locations = [item['properties']['title'] for item in data['features']]
-                            if not locations:
-                                _LOGGER.warning("No locations found in API response")
-                                return ["No locations found"]
-                            return locations
-                        except ValueError as e:
-                            _LOGGER.error("Error decoding JSON from API: %s", e)
-                            return ["Error decoding JSON"]
-                    else:
-                        _LOGGER.error("API returned status code %s", response.status)
-                        return [f"Error: Received status code {response.status}"]
-        except aiohttp.ClientError as e:
-            _LOGGER.error("Error fetching locations: %s", e)
-            return ["Error: Network issue when fetching locations"]
 
 @callback
 def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
     """Get the options flow handler."""
     return OptionsFlowHandler(config_entry)
+
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle the options flow for ARSO Weather."""
@@ -97,7 +118,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Handle the options menu."""
-        _LOGGER.debug("Options flow initialized with options: %s", self.config_entry.options)
+        _LOGGER.debug(
+            "Options flow initialized with options: %s", self.config_entry.options
+        )
 
         if user_input is not None:
             _LOGGER.debug("User input received: %s", user_input)
@@ -115,17 +138,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             return self.async_create_entry(title="", data={})
 
-        current_options = self.config_entry.options.get("platforms", ["weather", "sensor"])
+        current_options = self.config_entry.options.get(
+            "platforms", ["weather", "sensor"]
+        )
         _LOGGER.debug("Current options: %s", current_options)
 
-        schema = vol.Schema({
-            vol.Optional("enable_weather", default="weather" in current_options): bool,
-            vol.Optional("enable_sensor", default="sensor" in current_options): bool,
-        })
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    "enable_weather", default="weather" in current_options
+                ): bool,
+                vol.Optional(
+                    "enable_sensor", default="sensor" in current_options
+                ): bool,
+            }
+        )
 
         _LOGGER.debug("Generated options schema: %s", schema)
 
-        return self.async_show_form(
-            step_id="init",
-            data_schema=schema
-        )
+        return self.async_show_form(step_id="init", data_schema=schema)
