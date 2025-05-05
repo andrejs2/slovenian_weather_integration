@@ -1,4 +1,4 @@
-from typing import Optional, Any, Type
+from typing import Optional, Any, Type, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, computed_field, ConfigDict
 from .weather_map import CLOUD_CONDITION_MAP, WIND_DIRECTION_MAP
@@ -25,7 +25,7 @@ class BaseTimelineEntry(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,  # Allow using field names for population, relevant for upto including pydantic v2.10
         validate_by_name=True,  # Allow using field names for population, relevant for pydantic v2.11 and later
-        validate_by_alias=True, # Allow using aliases for population, relevant for pydantic v2.11 and later
+        validate_by_alias=True,  # Allow using aliases for population, relevant for pydantic v2.11 and later
         extra="ignore",  # Ignore extra fields from the API response
     )
 
@@ -478,7 +478,7 @@ class ObservationDetails(BaseTimelineEntry):  # Inherits from BaseTimelineEntry
         description="Povprečno difuzno sončno obsevanje v časovnem intervalu (W/m2)",
         examples=["63"],
     )
-    visibility_km: Optional[int] = Field(
+    visibility_km: Optional[Union[int | float]] = Field(
         default=None, alias="vis_val", description="Vidnost (km)", examples=[""]
     )
     temperature_at_5cm: Optional[float] = Field(
