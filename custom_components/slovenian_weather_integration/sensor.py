@@ -157,7 +157,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         name="Precipitation 1h",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # Total over the last hour
+        state_class=SensorStateClass.TOTAL_INCREASING,  # Total over the last hour
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
@@ -165,7 +165,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         name="Precipitation 12h",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # Total over the last 12 hours (since 6/18 UTC)
+        state_class=SensorStateClass.TOTAL_INCREASING,  # Total over the last 12 hours
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
@@ -173,7 +173,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         name="Precipitation 24h",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # Total over the last 24 hours
+        state_class=SensorStateClass.TOTAL_INCREASING,  # Total over the last 24 hours
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
