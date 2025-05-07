@@ -1,12 +1,14 @@
 import logging
-from datetime import datetime
-from typing import Optional, Dict, Any
+from datetime import datetime, date # Added date
+from typing import Optional, Dict, Any, cast
 
 from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
     SensorDeviceClass,
     SensorStateClass,
+    # Consider EntityCategory if some sensors are for diagnostics/config
+    # from homeassistant.helpers.entity import EntityCategory
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,21 +27,19 @@ from homeassistant.const import (
     UnitOfVolumetricFlux,
 )
 from homeassistant.helpers.device_registry import DeviceInfo
-import homeassistant.util.dt as dt_util  # For timezone conversion
+import homeassistant.util.dt as dt_util # Already imported
 
-# Assuming your coordinator and constants are defined here
-from .coordinator import ArsoDataUpdateCoordinator  # Adjust import if structure differs
+from .coordinator import ArsoDataUpdateCoordinator
 from .const import DOMAIN
 
-# Import your library's model
-from .arso_weather.models import ObservationDetails
+# Import your library's models
+from .arso_weather.models import ObservationDetails, Forecast24hTimelineEntry # Added Forecast24hTimelineEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 # Define Sensor Descriptions using the Pydantic field names as keys
-# We will filter this list based on available data later
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
-    # --- Fields from BaseTimelineEntry ---
+    # --- Fields from BaseTimelineEntry / ObservationDetails ---
     SensorEntityDescription(
         key="temperature",
         name="Temperature",
@@ -61,7 +61,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPressure.HPA,
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,  # Often has decimals, e.g. 1022.6
+        suggested_display_precision=1,
     ),
     SensorEntityDescription(
         key="wind_speed_kmh",
@@ -72,13 +72,12 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:weather-windy",
     ),
     SensorEntityDescription(
-        key="wind_direction_text",
+        key="wind_direction_text", # From BaseTimelineEntry
         name="Wind Direction",
         icon="mdi:compass-outline",
-        # No unit, device_class, or state_class for textual direction
     ),
     SensorEntityDescription(
-        key="max_wind_gust_kmh",
+        key="max_wind_gust_kmh", # From BaseTimelineEntry
         name="Wind Gust",
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         device_class=SensorDeviceClass.WIND_SPEED,
@@ -102,24 +101,6 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:compass",
     ),
     SensorEntityDescription(
-        key="wind_direction_max_gust_degrees",
-        name="Wind Gust Direction Degrees",
-        native_unit_of_measurement=DEGREE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:compass-rose",
-        entity_registry_enabled_default=False,
-    ),
-    # wind_direction_max_gust_text covered by wind_direction_text generally
-    SensorEntityDescription(
-        key="wind_speed_average_kmh",
-        name="Wind Speed Average",
-        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
-        device_class=SensorDeviceClass.WIND_SPEED,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:weather-windy",
-        entity_registry_enabled_default=False,  # Often less critical than current speed/gust
-    ),
-    SensorEntityDescription(
         key="station_pressure_hpa",
         name="Station Pressure",
         native_unit_of_measurement=UnitOfPressure.HPA,
@@ -128,15 +109,15 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
-        key="precipitation_accumulated_mm",  # 10 minute accumulated rainfall
-        name="Precipitation 10 minutes",
+        key="precipitation_accumulated_mm", # 10 minute accumulated rainfall from ObservationDetails
+        name="Precipitation (10 min)", # Clarified name
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # represents a total over a period that might reset (e.g., daily)
+        state_class=SensorStateClass.TOTAL_INCREASING, # More appropriate for accumulating sensor
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
-        key="precipitation_rate",
+        key="precipitation_rate", # Computed field in ObservationDetails
         name="Precipitation Rate",
         native_unit_of_measurement=UnitOfVolumetricFlux.MILLIMETERS_PER_HOUR,
         device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
@@ -153,40 +134,6 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
-        key="precipitation_1h_accumulated_mm",
-        name="Precipitation 1h",
-        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
-        device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # Total over the last hour
-        suggested_display_precision=1,
-    ),
-    SensorEntityDescription(
-        key="precipitation_12h_accumulated_mm",
-        name="Precipitation 12h",
-        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
-        device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # Total over the last 12 hours (since 6/18 UTC)
-        suggested_display_precision=1,
-    ),
-    SensorEntityDescription(
-        key="precipitation_24h_accumulated_mm",
-        name="Precipitation 24h",
-        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
-        device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL,  # Total over the last 24 hours
-        suggested_display_precision=1,
-    ),
-    SensorEntityDescription(
-        key="water_temperature",
-        name="Water Temperature",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:thermometer-water",
-        suggested_display_precision=1,
-        entity_registry_enabled_default=False,  # Often specific to certain locations
-    ),
-    SensorEntityDescription(
         key="global_solar_radiation_wm2",
         name="Global Solar Radiation",
         native_unit_of_measurement=UnitOfIrradiance.WATTS_PER_SQUARE_METER,
@@ -195,159 +142,37 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:solar-power-variant-outline",
     ),
     SensorEntityDescription(
-        key="global_solar_radiation_average_wm2",
-        name="Global Solar Radiation Average",
-        native_unit_of_measurement=UnitOfIrradiance.WATTS_PER_SQUARE_METER,
-        device_class=SensorDeviceClass.IRRADIANCE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:solar-power-variant",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="diffuse_solar_radiation_wm2",
-        name="Diffuse Solar Radiation",
-        native_unit_of_measurement=UnitOfIrradiance.WATTS_PER_SQUARE_METER,
-        device_class=SensorDeviceClass.IRRADIANCE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:weather-partly-cloudy",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="diffuse_solar_radiation_average_wm2",
-        name="Diffuse Solar Radiation Average",
-        native_unit_of_measurement=UnitOfIrradiance.WATTS_PER_SQUARE_METER,
-        device_class=SensorDeviceClass.IRRADIANCE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:weather-partly-cloudy",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
         key="visibility_km",
         name="Visibility",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
-        device_class=SensorDeviceClass.DISTANCE,
+        device_class=SensorDeviceClass.DISTANCE, # DISTANCE is more generic than VISIBILITY for device class
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:eye-outline",
     ),
+    # --- NEW SENSOR: Current UV Index (from ObservationDetails) ---
     SensorEntityDescription(
-        key="temperature_at_5cm",
-        name="Temperature at 5cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
+        key="current_uv_index", # This key must match the field name in ObservationDetails model
+        name="Current UV Index",
+        icon="mdi:sun-alert-outline", # Using a more specific icon for UV alert
         state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-low",
-        entity_registry_enabled_default=False,
+        # No native_unit_of_measurement for UV index, it's a dimensionless number
+        # entity_category=EntityCategory.MEASUREMENT, # Default category
     ),
+    # --- Other existing sensors from your original list can be added here if data is available ---
+    # Example:
+    # SensorEntityDescription(
+    #     key="precipitation_1h_accumulated_mm",
+    #     name="Precipitation 1h",
+    #     # ... other properties
+    # ),
+
+    # --- NEW SENSOR DESCRIPTION for UV Index Today (will use a dedicated class) ---
     SensorEntityDescription(
-        key="temperature_average_at_5cm",
-        name="Temperature Average at 5cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
+        key="uv_index_today", # Unique key for this specific sensor logic
+        name="UV Index Today",
+        icon="mdi:sun-calendar", # Icon indicating daily UV
         state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-low",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_at_5cm",
-        name="Ground Temperature at 5cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_average_at_5cm",
-        name="Ground Temperature Average at 5cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_at_10cm",
-        name="Ground Temperature at 10cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_average_at_10cm",
-        name="Ground Temperature Average at 10cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_at_20cm",
-        name="Ground Temperature at 20cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_average_at_20cm",
-        name="Ground Temperature Average at 20cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_at_30cm",
-        name="Ground Temperature at 30cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_average_at_30cm",
-        name="Ground Temperature Average at 30cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_at_50cm",
-        name="Ground Temperature at 50cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="ground_temperature_average_at_50cm",
-        name="Ground Temperature Average at 50cm",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        icon="mdi:thermometer-lines",
-        entity_registry_enabled_default=False,
+        # No native_unit_of_measurement for UV index
     ),
 )
 
@@ -359,44 +184,62 @@ async def async_setup_entry(
 ) -> None:
     """Set up ARSO weather sensor entities based on a config entry."""
     coordinator: ArsoDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    location_name = entry.data[CONF_LOCATION]  # Get location name from config entry
+    location_name = entry.data[CONF_LOCATION]
 
-    if not coordinator.last_update_success or not coordinator.data:
-        _LOGGER.warning(
-            "Initial ARSO data fetch failed or missing, cannot set up sensors yet."
-        )
-        if not coordinator.data:  # Strict check if no data object exists
-            _LOGGER.error(
-                "No initial data object from coordinator. Cannot create sensors."
-            )
-            return  # Cannot proceed without initial data structure
-
-    current_data: ObservationDetails = coordinator.data.get("current")[0]
-    _LOGGER.debug(f"DATA IS {current_data}")
-    entities_to_add = []
+    entities_to_add: list[SensorEntity] = [] # Explicitly list[SensorEntity]
 
     # Standard device info for all sensors related to this location
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, location_name)},
-        name=location_name,
-        manufacturer="ARSO",
-        model="Weather Station",
-        entry_type="service",
+        identifiers={(DOMAIN, location_name)}, # Use location_name for consistency
+        name=f"ARSO Weather {location_name}", # Device name includes location
+        manufacturer="ARSO & Temis.nl", # Added Temis.nl as a source
+        model="Weather Sensors",
+        entry_type="service", # Default entry type
+        # configuration_url="YOUR_INTEGRATION_DOC_URL", # Optional: Link to docs
     )
 
-    # Create entities for standard descriptions if data is available
-    for description in SENSOR_DESCRIPTIONS:
-        # Check if the key exists in the Pydantic model and its value is not None
-        value = getattr(current_data, description.key, None)
-        if value is not None:
-            _LOGGER.debug(f"Creating entity for {description.key} (value: {value})")
+    # --- Create standard sensors from ObservationDetails ---
+    if coordinator.data and coordinator.data.get("current"):
+        current_data_list = coordinator.data.get("current", [])
+        if current_data_list and isinstance(current_data_list[0], ObservationDetails):
+            current_obs_data: ObservationDetails = current_data_list[0]
+            
+            for description in SENSOR_DESCRIPTIONS:
+                # Skip the "uv_index_today" description here, it's handled separately
+                if description.key == "uv_index_today":
+                    continue
+
+                # Check if the key exists in the ObservationDetails model and its value is not None
+                # This will now also pick up "current_uv_index" if that field exists in current_obs_data
+                if hasattr(current_obs_data, description.key):
+                    value = getattr(current_obs_data, description.key, None)
+                    if value is not None:
+                        _LOGGER.debug(f"Creating ArsoWeatherSensor for '{description.key}' (value: {value}) for {location_name}")
+                        entities_to_add.append(
+                            ArsoWeatherSensor(coordinator, description, device_info, entry.entry_id)
+                        )
+                    else:
+                        _LOGGER.debug(f"Skipping ArsoWeatherSensor for '{description.key}' (value is None) for {location_name}")
+                else:
+                    _LOGGER.debug(f"Attribute '{description.key}' not found in ObservationDetails for {location_name}")
+        else:
+            _LOGGER.warning(f"No 'current' ObservationDetails data available to set up standard sensors for {location_name}.")
+
+    # --- Create UV Index Today sensor ---
+    # This sensor reads from the 'forecast24h' data provided by the coordinator
+    uv_today_description = next((desc for desc in SENSOR_DESCRIPTIONS if desc.key == "uv_index_today"), None)
+    if uv_today_description:
+        # Check if forecast24h data is available and contains the necessary info
+        if coordinator.data and coordinator.data.get("forecast24h"):
+            forecast_data_list = coordinator.data.get("forecast24h", [])
+            # We don't need to check the content here, the sensor itself will determine availability
+            _LOGGER.debug(f"Creating ArsoUVIndexTodaySensor for {location_name}")
             entities_to_add.append(
-                ArsoWeatherSensor(coordinator, description, device_info, entry.entry_id)
+                ArsoUVIndexTodaySensor(coordinator, uv_today_description, device_info, entry.entry_id)
             )
         else:
-            _LOGGER.debug(
-                f"Skipping entity creation for {description.key} (value is None)"
-            )
+            _LOGGER.info(f"No 'forecast24h' data available to set up UV Index Today sensor for {location_name}.")
+
 
     if entities_to_add:
         _LOGGER.info(
@@ -410,10 +253,96 @@ async def async_setup_entry(
 
 
 class ArsoWeatherSensor(CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity):
-    """Implementation of an ARSO weather sensor."""
+    """Implementation of a generic ARSO weather sensor based on ObservationDetails."""
 
-    _attr_has_entity_name = True  # Use entity description name as the base
-    # _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    # _attr_attribution = "Data provided by ARSO" # General attribution
+
+    def __init__(
+        self,
+        coordinator: ArsoDataUpdateCoordinator,
+        description: SensorEntityDescription,
+        device_info: DeviceInfo,
+        config_entry_id: str, # Changed from entry.entry_id to config_entry_id for clarity
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_device_info = device_info
+        # Construct unique ID: domain_configentryid_sensorkey
+        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
+        self._config_entry_id = config_entry_id # Store for potential use
+
+        # Set attribution based on sensor key
+        if description.key == "current_uv_index":
+            self._attr_attribution = "UV Index data from Temis.nl, other data from ARSO"
+        else:
+            self._attr_attribution = "Data provided by ARSO"
+
+
+    @property
+    def native_value(self) -> Optional[Any]:
+        """Return the state of the sensor."""
+        if not self.coordinator.data or not self.coordinator.data.get("current"):
+            return None
+
+        current_data_list = self.coordinator.data.get("current", [])
+        if not current_data_list or not isinstance(current_data_list[0], ObservationDetails):
+            return None
+        
+        current_obs_data: ObservationDetails = current_data_list[0]
+        
+        value = getattr(current_obs_data, self.entity_description.key, None)
+
+        precision = self.entity_description.suggested_display_precision
+        if precision is not None and isinstance(value, (int, float)):
+            return round(value, precision)
+        return value
+
+    @property
+    def extra_state_attributes(self) -> Optional[Dict[str, Any]]:
+        """Return entity specific state attributes."""
+        # Only add last_updated if it's relevant for this specific sensor's source data
+        # For most sensors based on ObservationDetails, 'valid_time' is the relevant timestamp.
+        if not self.coordinator.data or not self.coordinator.data.get("current"):
+            return None
+        
+        current_data_list = self.coordinator.data.get("current", [])
+        if not current_data_list or not isinstance(current_data_list[0], ObservationDetails):
+            return None
+            
+        current_obs_data: ObservationDetails = current_data_list[0]
+        
+        attrs: dict[str, Any] = {}
+        # Add 'last_updated_from_source' based on the 'valid_time' of the ObservationDetails
+        if current_obs_data.valid_time:
+            attrs["last_updated_from_source"] = dt_util.as_local(current_obs_data.valid_time).isoformat()
+        
+        return attrs if attrs else None
+
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        if not super().available or not self.coordinator.data or not self.coordinator.data.get("current"):
+            return False
+        
+        current_data_list = self.coordinator.data.get("current", [])
+        if not current_data_list or not isinstance(current_data_list[0], ObservationDetails):
+            return False
+        
+        current_obs_data: ObservationDetails = current_data_list[0]
+        
+        # Check if the specific key for this sensor exists and has a non-None value
+        return hasattr(current_obs_data, self.entity_description.key) and \
+               getattr(current_obs_data, self.entity_description.key, None) is not None
+
+
+class ArsoUVIndexTodaySensor(CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity):
+    """Sensor for today's UV Index, derived from the 24h forecast data."""
+
+    _attr_has_entity_name = True
+    _attr_attribution = "UV Index data from Temis.nl, forecast framework by ARSO"
 
     def __init__(
         self,
@@ -422,68 +351,61 @@ class ArsoWeatherSensor(CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEnti
         device_info: DeviceInfo,
         config_entry_id: str,
     ) -> None:
-        """Initialize the sensor."""
+        """Initialize the UV Index Today sensor."""
         super().__init__(coordinator)
-        self.entity_description = description
+        self.entity_description = description # Should be the "uv_index_today" SENSOR_DESCRIPTION
         self._attr_device_info = device_info
-        # Construct unique ID: domain_configentryid_sensorkey
         self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
+        self._config_entry_id = config_entry_id
 
     @property
-    def native_value(self) -> Optional[Any]:
-        """Return the state of the sensor."""
-        if not self.coordinator.last_update_success or not self.coordinator.data.get(
-            "current"
-        ):
-            return None  # Let HA handle unavailability
+    def native_value(self) -> Optional[float]:
+        """Return today's UV index from the forecast24h data."""
+        if not self.coordinator.data or not self.coordinator.data.get("forecast24h"):
+            _LOGGER.debug(f"UV Today Sensor: No 'forecast24h' data available for {self._attr_unique_id}")
+            return None
 
-        current_data: ObservationDetails = self.coordinator.data.get("current")[0]
+        forecast_list: list[Any] = self.coordinator.data.get("forecast24h", [])
+        today_local_date: date = dt_util.now().date() # Get current local date
 
-        # Default handling: get value directly using the key
-        value = getattr(current_data, self.entity_description.key, None)
-
-        # Apply suggested precision if available and value is numeric
-        precision = self.entity_description.suggested_display_precision
-        if precision is not None and isinstance(value, (int, float)):
-            return round(value, precision)
-
-        return (
-            value  # Return string as is (e.g., cardinal direction) or None if missing
-        )
+        for forecast_entry_model in forecast_list:
+            if isinstance(forecast_entry_model, Forecast24hTimelineEntry):
+                # valid_time in Forecast24hTimelineEntry should be a datetime object (UTC)
+                if forecast_entry_model.valid_time:
+                    forecast_date_local = dt_util.as_local(forecast_entry_model.valid_time).date()
+                    if forecast_date_local == today_local_date:
+                        # The 'uv_index' attribute should exist on Forecast24hTimelineEntry
+                        # as per changes in models.py and client.py
+                        if hasattr(forecast_entry_model, 'uv_index') and forecast_entry_model.uv_index is not None:
+                            _LOGGER.debug(f"UV Today Sensor ({self._attr_unique_id}): Found UV index {forecast_entry_model.uv_index} for {today_local_date}")
+                            return cast(float, forecast_entry_model.uv_index)
+                        else:
+                            _LOGGER.debug(f"UV Today Sensor ({self._attr_unique_id}): 'uv_index' attribute missing or None for today's forecast ({today_local_date}).")
+                            return None # Explicitly no UV index for today
+        
+        _LOGGER.debug(f"UV Today Sensor ({self._attr_unique_id}): No forecast entry found for today ({today_local_date}).")
+        return None # No forecast found for today
 
     @property
     def extra_state_attributes(self) -> Optional[Dict[str, Any]]:
         """Return entity specific state attributes."""
-        if not self.coordinator.last_update_success or not self.coordinator.data.get(
-            "current"
-        ):
-            return None  # Let HA handle unavailability
-
-        current_data: ObservationDetails = self.coordinator.data.get("current")[0]
-        valid_utc: Optional[datetime] = getattr(current_data, "valid", None)
-
-        if valid_utc:
-            # Convert the UTC datetime object from the API to local time
-            local_valid_time = dt_util.as_local(valid_utc)
-            return {"last_updated": local_valid_time.isoformat()}
-        else:
-            return None
+        # Could add the source valid_time of the forecast entry used, if desired.
+        if self.native_value is not None and self.coordinator.data and self.coordinator.data.get("forecast24h"):
+            forecast_list: list[Any] = self.coordinator.data.get("forecast24h", [])
+            today_local_date: date = dt_util.now().date()
+            for forecast_entry_model in forecast_list:
+                if isinstance(forecast_entry_model, Forecast24hTimelineEntry) and forecast_entry_model.valid_time:
+                    if dt_util.as_local(forecast_entry_model.valid_time).date() == today_local_date:
+                        return {"forecast_valid_time": dt_util.as_local(forecast_entry_model.valid_time).isoformat()}
+        return None
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        # Available if the coordinator is successful and the specific value is not None
-        # (or if it's the special rate sensor and its ingredients are available)
-        base_available = super().available and self.coordinator.data is not None
-
-        if not base_available:
+        """Return True if entity is available (i.e., data for today can be determined)."""
+        if not super().available or not self.coordinator.data or not self.coordinator.data.get("forecast24h"):
             return False
-
-        return (
-            getattr(
-                self.coordinator.data.get("current")[0],
-                self.entity_description.key,
-                None,
-            )
-            is not None
-        )
+        
+        # Sensor is available if there's forecast data; native_value will be None if today's UV isn't found.
+        # A more precise availability would be if native_value is not None, but HA handles that.
+        # For now, if forecast24h exists, we consider the sensor potentially able to find data.
+        return bool(self.coordinator.data.get("forecast24h"))
