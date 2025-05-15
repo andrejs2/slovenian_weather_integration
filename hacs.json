@@ -2,4 +2,5 @@
   "name": "ARSO Weather",
   "homeassistant": "2023.8.0",
   "render_readme": true
+  "country": "SI"
 }
