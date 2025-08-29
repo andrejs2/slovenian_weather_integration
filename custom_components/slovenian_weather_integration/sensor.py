@@ -1,45 +1,76 @@
-import logging
-from datetime import datetime, date # Added date
-from typing import Optional, Dict, Any, cast
+"""Sensor platform for ARSO Weather integration."""
+from __future__ import annotations
 
+import logging
+from datetime import date
+from typing import Any, Dict, List, Optional
+
+import homeassistant.util.dt as dt_util
 from homeassistant.components.sensor import (
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
-    SensorDeviceClass,
     SensorStateClass,
-    # Consider EntityCategory if some sensors are for diagnostics/config
-    # from homeassistant.helpers.entity import EntityCategory
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.const import (
+    ATTR_ATTRIBUTION,
     CONF_LOCATION,
-    UnitOfTemperature,
-    UnitOfSpeed,
-    UnitOfPressure,
-    UnitOfLength,
-    PERCENTAGE,
     DEGREE,
+    PERCENTAGE,
     UnitOfIrradiance,
+    UnitOfLength,
     UnitOfPrecipitationDepth,
-    UnitOfVolumetricFlux,
+    UnitOfPressure,
+    UnitOfSpeed,
+    UnitOfTemperature,
 )
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
-import homeassistant.util.dt as dt_util # Already imported
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
+from .const import (
+    CONF_ENABLE_MOUNTAIN,
+    CONF_MOUNTAIN_REGION,
+    DEFAULT_MOUNTAIN_REGION,
+    DOMAIN,
+    MOUNTAIN_COORDINATOR_KEY,
+    MOUNTAIN_DEVICE_SUFFIX,
+)
 from .coordinator import ArsoDataUpdateCoordinator
-from .const import DOMAIN
 
-# Import your library's models
-from .arso_weather.models import ObservationDetails, Forecast24hTimelineEntry # Added Forecast24hTimelineEntry
+# --- Določanje konstant glede na verzijo Home Assistant ---
+try:
+    # Za novejše verzije HA (2024.x+)
+    from homeassistant.const import UnitOfVolumetricFlux as _UOVF
+
+    UNIT_MM_PER_HOUR = _UOVF.MILLIMETERS_PER_HOUR
+    PRECIP_INTENSITY_CLASS = SensorDeviceClass.PRECIPITATION_INTENSITY
+except (ImportError, AttributeError):
+    # Fallback za starejše verzije HA
+    UNIT_MM_PER_HOUR = "mm/h"
+    PRECIP_INTENSITY_CLASS = None  # Brez posebnega device_class
 
 _LOGGER = logging.getLogger(__name__)
 
-# Define Sensor Descriptions using the Pydantic field names as keys
+
+def _get(obj: Any, key: str, default: Any = None) -> Any:
+    """Varno vrne vrednost atributa ali ključa iz slovarja, sicer privzeto vrednost."""
+    if obj is None:
+        return default
+    if hasattr(obj, key):
+        return getattr(obj, key)
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return default
+
+
+# --- Opisi senzorjev za trenutno vreme ('current') ---
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
-    # --- Fields from BaseTimelineEntry / ObservationDetails ---
     SensorEntityDescription(
         key="temperature",
         name="Temperature",
@@ -72,19 +103,18 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:weather-windy",
     ),
     SensorEntityDescription(
-        key="wind_direction_text", # From BaseTimelineEntry
+        key="wind_direction_text",
         name="Wind Direction",
         icon="mdi:compass-outline",
     ),
     SensorEntityDescription(
-        key="max_wind_gust_kmh", # From BaseTimelineEntry
+        key="max_wind_gust_kmh",
         name="Wind Gust",
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         device_class=SensorDeviceClass.WIND_SPEED,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:weather-windy-variant",
     ),
-    # --- Fields specific to ObservationDetails ---
     SensorEntityDescription(
         key="dew_point",
         name="Dew Point",
@@ -109,18 +139,18 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
-        key="precipitation_accumulated_mm", # 10 minute accumulated rainfall from ObservationDetails
-        name="Precipitation (10 min)", # Clarified name
+        key="precipitation_accumulated_mm",
+        name="Precipitation (10 min)",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.TOTAL_INCREASING, # More appropriate for accumulating sensor
+        state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
-        key="precipitation_rate", # Computed field in ObservationDetails
+        key="precipitation_rate",
         name="Precipitation Rate",
-        native_unit_of_measurement=UnitOfVolumetricFlux.MILLIMETERS_PER_HOUR,
-        device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
+        native_unit_of_measurement=UNIT_MM_PER_HOUR,
+        device_class=PRECIP_INTENSITY_CLASS,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:weather-pouring",
         suggested_display_precision=2,
@@ -145,34 +175,21 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         key="visibility_km",
         name="Visibility",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
-        device_class=SensorDeviceClass.DISTANCE, # DISTANCE is more generic than VISIBILITY for device class
+        device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:eye-outline",
     ),
-    # --- NEW SENSOR: Current UV Index (from ObservationDetails) ---
     SensorEntityDescription(
-        key="current_uv_index", # This key must match the field name in ObservationDetails model
+        key="current_uv_index",
         name="Current UV Index",
-        icon="mdi:sunglasses", # Using a more specific icon for UV alert
+        icon="mdi:sunglasses",
         state_class=SensorStateClass.MEASUREMENT,
-        # No native_unit_of_measurement for UV index, it's a dimensionless number
-        # entity_category=EntityCategory.MEASUREMENT, # Default category
     ),
-    # --- Other existing sensors from your original list can be added here if data is available ---
-    # Example:
-    # SensorEntityDescription(
-    #     key="precipitation_1h_accumulated_mm",
-    #     name="Precipitation 1h",
-    #     # ... other properties
-    # ),
-
-    # --- NEW SENSOR DESCRIPTION for UV Index Today (will use a dedicated class) ---
     SensorEntityDescription(
-        key="uv_index_today", # Unique key for this specific sensor logic
+        key="uv_index_today",
         name="UV Index Today",
-        icon="mdi:sun-wireless", # Icon indicating daily UV
+        icon="mdi:sun-wireless",
         state_class=SensorStateClass.MEASUREMENT,
-        # No native_unit_of_measurement for UV index
     ),
 )
 
@@ -182,167 +199,71 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up ARSO weather sensor entities based on a config entry."""
+    """Nastavi senzorje ARSO na podlagi konfiguracijskega vnosa."""
     coordinator: ArsoDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     location_name = entry.data[CONF_LOCATION]
 
-    entities_to_add: list[SensorEntity] = [] # Explicitly list[SensorEntity]
+    entities: list[SensorEntity] = []
 
-    # Standard device info for all sensors related to this location
+    # Naprava za lokacijo
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, location_name)}, # Use location_name for consistency
-        name=f"ARSO Weather {location_name}", # Device name includes location
-        manufacturer="ARSO", # Added Temis.nl as a source
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=f"ARSO Weather – {location_name}",
+        manufacturer="ARSO",
         model="Weather Sensors",
-        entry_type="service", # Default entry type
-        # configuration_url="YOUR_INTEGRATION_DOC_URL", # Optional: Link to docs
     )
 
-    # --- Create standard sensors from ObservationDetails ---
-    if coordinator.data and coordinator.data.get("current"):
-        current_data_list = coordinator.data.get("current", [])
-        if current_data_list and isinstance(current_data_list[0], ObservationDetails):
-            current_obs_data: ObservationDetails = current_data_list[0]
-            
-            for description in SENSOR_DESCRIPTIONS:
-                # Skip the "uv_index_today" description here, it's handled separately
-                if description.key == "uv_index_today":
-                    continue
-
-                # Check if the key exists in the ObservationDetails model and its value is not None
-                # This will now also pick up "current_uv_index" if that field exists in current_obs_data
-                if hasattr(current_obs_data, description.key):
-                    value = getattr(current_obs_data, description.key, None)
-                    if value is not None:
-                        _LOGGER.debug(f"Creating ArsoWeatherSensor for '{description.key}' (value: {value}) for {location_name}")
-                        entities_to_add.append(
-                            ArsoWeatherSensor(coordinator, description, device_info, entry.entry_id)
-                        )
-                    else:
-                        _LOGGER.debug(f"Skipping ArsoWeatherSensor for '{description.key}' (value is None) for {location_name}")
-                else:
-                    _LOGGER.debug(f"Attribute '{description.key}' not found in ObservationDetails for {location_name}")
-        else:
-            _LOGGER.warning(f"No 'current' ObservationDetails data available to set up standard sensors for {location_name}.")
-
-    # --- Create UV Index Today sensor ---
-    # This sensor reads from the 'forecast24h' data provided by the coordinator
-    uv_today_description = next((desc for desc in SENSOR_DESCRIPTIONS if desc.key == "uv_index_today"), None)
-    if uv_today_description:
-        # Check if forecast24h data is available and contains the necessary info
-        if coordinator.data and coordinator.data.get("forecast24h"):
-            forecast_data_list = coordinator.data.get("forecast24h", [])
-            # We don't need to check the content here, the sensor itself will determine availability
-            _LOGGER.debug(f"Creating ArsoUVIndexTodaySensor for {location_name}")
-            entities_to_add.append(
-                ArsoUVIndexTodaySensor(coordinator, uv_today_description, device_info, entry.entry_id)
-            )
-        else:
-            _LOGGER.info(f"No 'forecast24h' data available to set up UV Index Today sensor for {location_name}.")
-
-
-    if entities_to_add:
-        _LOGGER.info(
-            f"Adding {len(entities_to_add)} ARSO weather sensors for {location_name}"
-        )
-        async_add_entities(entities_to_add)
+    # Ustvari senzorje za trenutno stanje
+    current_list = (coordinator.data or {}).get("current", [])
+    current = current_list[0] if current_list else None
+    if current:
+        for desc in SENSOR_DESCRIPTIONS:
+            if desc.key == "uv_index_today":
+                continue  # Obdelamo posebej
+            if _get(current, desc.key) is not None:
+                entities.append(
+                    ArsoWeatherSensor(coordinator, desc, device_info, entry.entry_id)
+                )
+            else:
+                _LOGGER.debug(
+                    "Skipping sensor %s for %s (no value)", desc.key, location_name
+                )
     else:
-        _LOGGER.warning(
-            f"No valid sensors found to add for {location_name} based on initial data."
+        _LOGGER.info("No 'current' data available yet for %s", location_name)
+
+    # Senzor za današnji UV indeks iz napovedi
+    if (coordinator.data or {}).get("forecast24h"):
+        uv_desc = next(
+            (d for d in SENSOR_DESCRIPTIONS if d.key == "uv_index_today"), None
         )
+        if uv_desc:
+            entities.append(
+                ArsoUVIndexTodaySensor(coordinator, uv_desc, device_info, entry.entry_id)
+            )
+
+    # Senzorji za gore (če so omogočeni)
+    options = entry.options or {}
+    if options.get(CONF_ENABLE_MOUNTAIN, False):
+        mcoord_key = MOUNTAIN_COORDINATOR_KEY.format(entry.entry_id)
+        if mcoord := hass.data[DOMAIN].get(mcoord_key):
+            region = options.get(CONF_MOUNTAIN_REGION, DEFAULT_MOUNTAIN_REGION)
+            entities.append(MountainForecastRawSensor(mcoord, entry, region))
+        else:
+            _LOGGER.debug(
+                "Mountain coordinator not found for %s", entry.entry_id
+            )
+
+    if entities:
+        async_add_entities(entities)
+        _LOGGER.info("Added %d ARSO sensors for %s", len(entities), location_name)
+    else:
+        _LOGGER.warning("No sensors created for %s at setup time", location_name)
 
 
 class ArsoWeatherSensor(CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity):
-    """Implementation of a generic ARSO weather sensor based on ObservationDetails."""
+    """Splošni senzor ARSO za trenutne vremenske podatke."""
 
     _attr_has_entity_name = True
-    # _attr_attribution = "Data provided by ARSO" # General attribution
-
-    def __init__(
-        self,
-        coordinator: ArsoDataUpdateCoordinator,
-        description: SensorEntityDescription,
-        device_info: DeviceInfo,
-        config_entry_id: str, # Changed from entry.entry_id to config_entry_id for clarity
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator)
-        self.entity_description = description
-        self._attr_device_info = device_info
-        # Construct unique ID: domain_configentryid_sensorkey
-        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
-        self._config_entry_id = config_entry_id # Store for potential use
-
-        # Set attribution based on sensor key
-        if description.key == "current_uv_index":
-            self._attr_attribution = "UV Index data from Temis.nl, other data from ARSO"
-        else:
-            self._attr_attribution = "Data provided by ARSO"
-
-
-    @property
-    def native_value(self) -> Optional[Any]:
-        """Return the state of the sensor."""
-        if not self.coordinator.data or not self.coordinator.data.get("current"):
-            return None
-
-        current_data_list = self.coordinator.data.get("current", [])
-        if not current_data_list or not isinstance(current_data_list[0], ObservationDetails):
-            return None
-        
-        current_obs_data: ObservationDetails = current_data_list[0]
-        
-        value = getattr(current_obs_data, self.entity_description.key, None)
-
-        precision = self.entity_description.suggested_display_precision
-        if precision is not None and isinstance(value, (int, float)):
-            return round(value, precision)
-        return value
-
-    @property
-    def extra_state_attributes(self) -> Optional[Dict[str, Any]]:
-        """Return entity specific state attributes."""
-        # Only add last_updated if it's relevant for this specific sensor's source data
-        # For most sensors based on ObservationDetails, 'valid_time' is the relevant timestamp.
-        if not self.coordinator.data or not self.coordinator.data.get("current"):
-            return None
-        
-        current_data_list = self.coordinator.data.get("current", [])
-        if not current_data_list or not isinstance(current_data_list[0], ObservationDetails):
-            return None
-            
-        current_obs_data: ObservationDetails = current_data_list[0]
-        
-        attrs: dict[str, Any] = {}
-        # Add 'last_updated_from_source' based on the 'valid_time' of the ObservationDetails
-        if current_obs_data.valid_time:
-            attrs["last_updated_from_source"] = dt_util.as_local(current_obs_data.valid_time).isoformat()
-        
-        return attrs if attrs else None
-
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        if not super().available or not self.coordinator.data or not self.coordinator.data.get("current"):
-            return False
-        
-        current_data_list = self.coordinator.data.get("current", [])
-        if not current_data_list or not isinstance(current_data_list[0], ObservationDetails):
-            return False
-        
-        current_obs_data: ObservationDetails = current_data_list[0]
-        
-        # Check if the specific key for this sensor exists and has a non-None value
-        return hasattr(current_obs_data, self.entity_description.key) and \
-               getattr(current_obs_data, self.entity_description.key, None) is not None
-
-
-class ArsoUVIndexTodaySensor(CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity):
-    """Sensor for today's UV Index, derived from the 24h forecast data."""
-
-    _attr_has_entity_name = True
-    _attr_attribution = "UV Index data from Temis.nl, forecast framework by ARSO"
 
     def __init__(
         self,
@@ -351,61 +272,194 @@ class ArsoUVIndexTodaySensor(CoordinatorEntity[ArsoDataUpdateCoordinator], Senso
         device_info: DeviceInfo,
         config_entry_id: str,
     ) -> None:
-        """Initialize the UV Index Today sensor."""
+        """Inicializacija senzorja."""
         super().__init__(coordinator)
-        self.entity_description = description # Should be the "uv_index_today" SENSOR_DESCRIPTION
+        self.entity_description = description
         self._attr_device_info = device_info
         self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
-        self._config_entry_id = config_entry_id
+        self._attr_attribution = (
+            "UV data: Temis.nl; other: ARSO"
+            if description.key == "current_uv_index"
+            else "Source: ARSO"
+        )
 
     @property
-    def native_value(self) -> Optional[float]:
-        """Return today's UV index from the forecast24h data."""
-        if not self.coordinator.data or not self.coordinator.data.get("forecast24h"):
-            _LOGGER.debug(f"UV Today Sensor: No 'forecast24h' data available for {self._attr_unique_id}")
+    def native_value(self) -> Any:
+        """Vrne vrednost senzorja."""
+        current_list = (self.coordinator.data or {}).get("current", [])
+        current = current_list[0] if current_list else None
+        if not current:
             return None
 
-        forecast_list: list[Any] = self.coordinator.data.get("forecast24h", [])
-        today_local_date: date = dt_util.now().date() # Get current local date
-
-        for forecast_entry_model in forecast_list:
-            if isinstance(forecast_entry_model, Forecast24hTimelineEntry):
-                # valid_time in Forecast24hTimelineEntry should be a datetime object (UTC)
-                if forecast_entry_model.valid_time:
-                    forecast_date_local = dt_util.as_local(forecast_entry_model.valid_time).date()
-                    if forecast_date_local == today_local_date:
-                        # The 'uv_index' attribute should exist on Forecast24hTimelineEntry
-                        # as per changes in models.py and client.py
-                        if hasattr(forecast_entry_model, 'uv_index') and forecast_entry_model.uv_index is not None:
-                            _LOGGER.debug(f"UV Today Sensor ({self._attr_unique_id}): Found UV index {forecast_entry_model.uv_index} for {today_local_date}")
-                            return cast(float, forecast_entry_model.uv_index)
-                        else:
-                            _LOGGER.debug(f"UV Today Sensor ({self._attr_unique_id}): 'uv_index' attribute missing or None for today's forecast ({today_local_date}).")
-                            return None # Explicitly no UV index for today
-        
-        _LOGGER.debug(f"UV Today Sensor ({self._attr_unique_id}): No forecast entry found for today ({today_local_date}).")
-        return None # No forecast found for today
+        value = _get(current, self.entity_description.key)
+        precision = self.entity_description.suggested_display_precision
+        if precision is not None and isinstance(value, (int, float)):
+            return round(value, precision)
+        return value
 
     @property
-    def extra_state_attributes(self) -> Optional[Dict[str, Any]]:
-        """Return entity specific state attributes."""
-        # Could add the source valid_time of the forecast entry used, if desired.
-        if self.native_value is not None and self.coordinator.data and self.coordinator.data.get("forecast24h"):
-            forecast_list: list[Any] = self.coordinator.data.get("forecast24h", [])
-            today_local_date: date = dt_util.now().date()
-            for forecast_entry_model in forecast_list:
-                if isinstance(forecast_entry_model, Forecast24hTimelineEntry) and forecast_entry_model.valid_time:
-                    if dt_util.as_local(forecast_entry_model.valid_time).date() == today_local_date:
-                        return {"forecast_valid_time": dt_util.as_local(forecast_entry_model.valid_time).isoformat()}
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Vrne dodatne atribute stanja."""
+        current_list = (self.coordinator.data or {}).get("current", [])
+        current = current_list[0] if current_list else None
+        if not current:
+            return None
+
+        attrs: dict[str, Any] = {}
+        if valid_time := _get(current, "valid_time"):
+            try:
+                attrs["last_updated_from_source"] = dt_util.as_local(
+                    valid_time
+                ).isoformat()
+            except (TypeError, ValueError):
+                attrs["last_updated_from_source"] = str(valid_time)
+        return attrs or None
+
+    @property
+    def available(self) -> bool:
+        """Vrne True, če je entiteta na voljo."""
+        if not super().available:
+            return False
+        current_list = (self.coordinator.data or {}).get("current", [])
+        current = current_list[0] if current_list else None
+        if not current:
+            return False
+        return _get(current, self.entity_description.key) is not None
+
+
+class ArsoUVIndexTodaySensor(CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity):
+    """Senzor za današnji UV indeks, pridobljen iz 24-urne napovedi."""
+
+    _attr_has_entity_name = True
+    _attr_attribution = "UV data: Temis.nl (if present); forecast framework: ARSO"
+
+    def __init__(
+        self,
+        coordinator: ArsoDataUpdateCoordinator,
+        description: SensorEntityDescription,
+        device_info: DeviceInfo,
+        config_entry_id: str,
+    ) -> None:
+        """Inicializacija senzorja."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_device_info = device_info
+        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
+
+    @property
+    def native_value(self) -> float | None:
+        """Vrne najvišji UV indeks za današnji dan."""
+        forecast_data = (self.coordinator.data or {}).get("forecast24h", [])
+        if not forecast_data:
+            return None
+
+        today = dt_util.now().date()
+        max_uv: float | None = None
+
+        for item in forecast_data:
+            if not (valid_time := _get(item, "valid_time")):
+                continue
+            try:
+                if dt_util.as_local(valid_time).date() != today:
+                    continue
+            except (TypeError, ValueError):
+                continue
+
+            if (uv_val := _get(item, "uv_index")) is not None and isinstance(
+                uv_val, (int, float)
+            ):
+                max_uv = uv_val if max_uv is None else max(max_uv, float(uv_val))
+
+        return max_uv
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Vrne dodatne atribute stanja."""
+        forecast_data = (self.coordinator.data or {}).get("forecast24h", [])
+        if not forecast_data:
+            return None
+
+        today = dt_util.now().date()
+        for item in forecast_data:
+            if valid_time := _get(item, "valid_time"):
+                try:
+                    if dt_util.as_local(valid_time).date() == today:
+                        return {
+                            "forecast_valid_time": dt_util.as_local(
+                                valid_time
+                            ).isoformat()
+                        }
+                except (TypeError, ValueError):
+                    continue
         return None
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available (i.e., data for today can be determined)."""
-        if not super().available or not self.coordinator.data or not self.coordinator.data.get("forecast24h"):
-            return False
-        
-        # Sensor is available if there's forecast data; native_value will be None if today's UV isn't found.
-        # A more precise availability would be if native_value is not None, but HA handles that.
-        # For now, if forecast24h exists, we consider the sensor potentially able to find data.
-        return bool(self.coordinator.data.get("forecast24h"))
+        """Vrne True, če je entiteta na voljo."""
+        return super().available and bool(
+            (self.coordinator.data or {}).get("forecast24h")
+        )
+
+
+# --- Senzorji za gorsko napoved ---
+ATTR_SOURCE_URL = "source_url"
+ATTR_UPDATED_AT = "updated_at_utc"
+ATTR_HTML_PREVIEW = "raw_html_preview"
+ATTR_HTML_LEN = "raw_html_length"
+
+
+class MountainBaseEntity(CoordinatorEntity[DataUpdateCoordinator], SensorEntity):
+    """Osnovna entiteta za senzorje gorske napovedi."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self, coordinator: DataUpdateCoordinator, entry: ConfigEntry, region: str
+    ) -> None:
+        """Inicializacija osnovne entitete."""
+        super().__init__(coordinator)
+        self._entry = entry
+        self._region = region
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Vrne informacije o napravi."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"{self._entry.entry_id}-{MOUNTAIN_DEVICE_SUFFIX}")},
+            name=f"ARSO Mountain – {self._region}",
+            manufacturer="ARSO",
+            model="Mountain forecast",
+        )
+
+
+class MountainForecastRawSensor(MountainBaseEntity):
+    """Senzor, ki prikaže surov predogled HTML vsebine gorske napovedi."""
+
+    _attr_name = "Forecast (raw preview)"
+    _attr_icon = "mdi:mountain"
+
+    def __init__(
+        self, coordinator: DataUpdateCoordinator, entry: ConfigEntry, region: str
+    ) -> None:
+        """Inicializacija senzorja."""
+        super().__init__(coordinator, entry, region)
+        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_{MOUNTAIN_DEVICE_SUFFIX}_raw"
+
+    @property
+    def native_value(self) -> str | None:
+        """Vrne stanje senzorja."""
+        return "available" if self.coordinator.data else "unavailable"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Vrne dodatne atribute stanja."""
+        data = self.coordinator.data or {}
+        attrs: dict[str, Any] = {
+            ATTR_ATTRIBUTION: "Source: ARSO",
+            ATTR_SOURCE_URL: data.get("source_url"),
+            ATTR_UPDATED_AT: data.get("updated_at_utc"),
+            ATTR_HTML_LEN: data.get("raw_html_length"),
+        }
+        if preview := data.get("raw_html_preview"):
+            attrs[ATTR_HTML_PREVIEW] = preview
+        return attrs
