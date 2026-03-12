@@ -58,10 +58,11 @@ class ArsoWeather:
         Values are lists of Pydantic model instances.
 
         The official API provides forecast data for all locations.
-        Primary stations (in OBSERVATION_STATIONS) also have detailed
-        current observations from the observationAms endpoint.
-        Non-primary stations use the first forecast3h entry as a proxy
-        for current conditions.
+        It also returns an "observation" key with the real-time current
+        conditions (weather phenomenon, cloud cover, temp, wind, etc.).
+        Primary stations (in OBSERVATION_STATIONS) additionally have
+        detailed measurements from the observationAms endpoint (dew point,
+        visibility, ground temps, solar radiation, etc.).
         """
         # Fetch official API data (available for all 247 locations)
         official_url = OFFICIAL_ARSO_API_URL.format(
@@ -85,13 +86,15 @@ class ArsoWeather:
                     for entry in timeline
                 ]
 
-        # Build current observation
-        # Forecast proxy provides condition fields (clouds, weather icons)
-        # that observationAms does not include
-        forecast_proxy = self._observation_from_forecast(raw_timelines)
+        # Build current observation from the best available source:
+        # 1. "observation" key from official API — real-time current conditions
+        # 2. forecast3h[0] — fallback proxy (next 3h forecast window)
+        observation_proxy = self._build_observation_proxy(
+            official_data, raw_timelines
+        )
 
         if self.location_id:
-            # Primary station: get detailed observation from observationAms
+            # Primary station: get detailed measurements from observationAms
             station_url = PRIMARY_STATION_BASE_URL.format(
                 location_id=self.location_id
             )
@@ -99,18 +102,20 @@ class ArsoWeather:
                 station_data = await self._fetch_json(station_url)
                 station_parsed = self._parse_primary_station_data(station_data)
                 detailed = ObservationDetails.model_validate(station_parsed)
-                # Merge: forecast_proxy provides condition/cloud fields,
-                # detailed provides precise measurements (temp, wind, etc.)
-                observation = merge_observation_data(forecast_proxy, detailed)
+                # Merge: observation_proxy provides condition/cloud fields,
+                # detailed provides precise measurements (dew point, etc.)
+                observation = merge_observation_data(
+                    observation_proxy, detailed
+                )
             except (ArsoApiError, ValueError) as err:
                 _LOGGER.warning(
                     "Failed to get primary station data for %s: %s",
                     self.location_name,
                     err,
                 )
-                observation = forecast_proxy
+                observation = observation_proxy
         else:
-            observation = forecast_proxy
+            observation = observation_proxy
 
         return {"current": [observation], **forecasts}
 
@@ -178,7 +183,9 @@ class ArsoWeather:
     def _parse_primary_station_data(data: dict) -> dict:
         """Parse primary weather station data (observationAms).
 
-        Returns the first timeline entry as a raw dict.
+        Returns the most recent timeline entry as a raw dict.
+        The history endpoint stores entries chronologically — the last
+        entry in the last day is the latest observation.
         """
         features = data.get("features")
         if not features or not isinstance(features, list):
@@ -187,18 +194,55 @@ class ArsoWeather:
             )
         try:
             feature = features[0]
-            return feature["properties"]["days"][0]["timeline"][0]
+            days = feature["properties"]["days"]
+            timeline = days[-1]["timeline"]
+            return timeline[-1]
         except (KeyError, IndexError, TypeError) as err:
             raise ArsoApiError(
                 f"Invalid station data structure: {err}"
             ) from err
 
     @staticmethod
-    def _observation_from_forecast(
+    def _extract_observation(data: dict) -> dict | None:
+        """Extract real-time observation from official API response.
+
+        The "observation" key contains current conditions (weather phenomenon,
+        cloud cover, temperature, wind) directly from the weather station.
+        """
+        if "observation" not in data:
+            return None
+        try:
+            feature = data["observation"]["features"][0]
+            days = feature["properties"]["days"]
+            return days[-1]["timeline"][-1]
+        except (KeyError, IndexError, TypeError) as err:
+            _LOGGER.debug("Failed to extract observation: %s", err)
+            return None
+
+    def _build_observation_proxy(
+        self,
+        official_data: dict,
         raw_timelines: dict[str, list[dict]],
     ) -> ObservationTimelineEntry:
-        """Create an observation from the first forecast3h entry as proxy."""
+        """Build current observation from the best available source.
+
+        Priority:
+        1. "observation" key — real-time current conditions from the station
+        2. forecast3h[0] — fallback (next 3h forecast window, less accurate)
+        """
+        obs_raw = self._extract_observation(official_data)
+        if obs_raw:
+            _LOGGER.debug(
+                "Using real-time observation for %s", self.location_name
+            )
+            return ObservationTimelineEntry.model_validate(obs_raw)
+
         forecast3h = raw_timelines.get("forecast3h", [])
         if forecast3h:
+            _LOGGER.debug(
+                "No observation available, using forecast3h proxy for %s",
+                self.location_name,
+            )
             return ObservationTimelineEntry.model_validate(forecast3h[0])
+
         return ObservationTimelineEntry()

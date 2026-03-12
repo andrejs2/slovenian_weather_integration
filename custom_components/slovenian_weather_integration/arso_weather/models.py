@@ -160,11 +160,15 @@ class BaseTimelineEntry(BaseModel):
         checking against CLOUD_CONDITION_MAP in order of precedence.
         Returns the first match found, or "unknown" if no match.
         """
+        # Icons are checked before text because observationAms may return
+        # incomplete text (e.g. "oblačno" without the weather phenomenon),
+        # while the icon reliably encodes both cloud cover and phenomenon
+        # (e.g. "overcast_lightRA" = overcast + light rain).
         fields_to_check = [
-            self.combined_cloud_weather_text,
             self.combined_cloud_weather_icon,
-            self.weather_phenomenon_text,
             self.weather_phenomenon_icon,
+            self.combined_cloud_weather_text,
+            self.weather_phenomenon_text,
             self.cloud_cover_text,
         ]
 
@@ -614,45 +618,41 @@ MODEL_MAPPING: dict[str, Type[BaseModel]] = {
 }
 
 
+_CONDITION_FIELDS = frozenset({
+    "cloud_cover_text",
+    "weather_phenomenon_text",
+    "weather_phenomenon_icon",
+    "combined_cloud_weather_icon",
+    "combined_cloud_weather_text",
+    "cloud_base_text",
+})
+
+
 def merge_observation_data(
     timeline_entry: ObservationTimelineEntry, details: ObservationDetails
 ) -> ObservationDetails:
+    """Merge observation proxy with detailed station measurements.
+
+    The timeline_entry (from the official API's "observation" or forecast3h
+    proxy) provides accurate weather condition fields (cloud cover, weather
+    phenomena, combined icons/text).
+
+    The details (from observationAms) provides precise measurements
+    (dew point, visibility, ground temps, solar radiation, etc.) but its
+    condition fields are often stale or incomplete.
+
+    Condition fields are always kept from timeline_entry.
+    All other fields are overwritten by non-None values from details.
     """
-    Merges data from an ObservationTimelineEntry and an ObservationDetails
-    into a new, comprehensive ObservationDetails instance.
+    timeline_data = timeline_entry.model_dump(by_alias=False)
+    details_data = details.model_dump(by_alias=False)
 
-    It prioritizes non-None values from the `details` object for shared fields.
-    Fields specific to ObservationDetails are included.
-    Fields potentially specific to ObservationTimelineEntry (if any existed)
-    would be preserved if not overwritten by a non-None value in details.
-
-    Args:
-        timeline_entry: The existing, potentially simpler, observation data.
-        details: The newly available, more detailed observation data.
-
-    Returns:
-        A new ObservationDetails instance containing the merged data.
-    """
-    # Get dictionaries of the data, excluding None values unless explicitly set
-    # Using model_dump() gets all defined fields, including those currently None
-    timeline_data = timeline_entry.model_dump(by_alias=False)  # Use python names
-    details_data = details.model_dump(by_alias=False)  # Use python names
-
-    # Start with the timeline data as the base
     merged_data = timeline_data.copy()
 
-    # Iterate through the detailed data
     for key, detail_value in details_data.items():
-        # Update the merged data if:
-        # 1. The detail_value is not None (prioritize non-None details)
-        # 2. OR the key doesn't exist in the original timeline_data (it's a new field)
+        if key in _CONDITION_FIELDS:
+            continue
         if detail_value is not None:
             merged_data[key] = detail_value
-        # If detail_value is None, we keep the value from timeline_data (which might also be None)
-        # If the key is new (only in details) and its value is None, it will be included as None
 
-    # Create the final, merged ObservationDetails object
-    # Pydantic will validate the merged data against the ObservationDetails schema
-    final_details = ObservationDetails(**merged_data)
-
-    return final_details
+    return ObservationDetails(**merged_data)
