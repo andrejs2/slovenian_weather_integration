@@ -367,7 +367,7 @@ Only warnings with level >= 2 include detailed CAP XML data (description, instru
 
 ## Weather Entity
 
-The `weather.arso_vreme_{location}` entity exposes the following properties:
+The `weather.arso_weather_{location}` entity exposes the following properties:
 
 | Property | Description | Source |
 |----------|-------------|--------|
@@ -413,7 +413,7 @@ The integration covers 247 locations total, including stations in Slovenia, Aust
 
 ```yaml
 type: weather-forecast
-entity: weather.arso_vreme_ljubljana
+entity: weather.arso_weather_ljubljana
 forecast_type: daily
 ```
 
