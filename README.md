@@ -126,30 +126,30 @@ Always enabled. Provides a `weather` entity and up to 35 sensor entities per loc
 
 **Sensor entities (up to 35 per location):**
 
-| Sensor | Key | Unit | Availability |
-|--------|-----|------|-------------|
+| Sensor Name (SI) | Key | Unit | Availability |
+|------------------|-----|------|-------------|
 | Temperatura | `temperature` | C | All stations |
-| Relativna vlaznost | `relative_humidity_percent` | % | All stations |
-| Zracni tlak | `mean_sea_level_pressure_hpa` | hPa | All stations |
+| Relativna vlažnost | `relative_humidity_percent` | % | All stations |
+| Zračni tlak | `mean_sea_level_pressure_hpa` | hPa | All stations |
 | Hitrost vetra | `wind_speed_kmh` | km/h | All stations |
 | Smer vetra | `wind_direction_text` | -- | All stations |
 | Sunki vetra | `max_wind_gust_kmh` | km/h | All stations |
-| Rosisce | `dew_point` | C | Primary only |
+| Rosišče | `dew_point` | C | Primary only |
 | Smer vetra (stopinje) | `wind_direction_degrees` | deg | Primary only |
 | Smer sunkov (stopinje) | `wind_direction_max_gust_degrees` | deg | Primary only |
-| Povprecna hitrost vetra | `wind_speed_average_kmh` | km/h | Primary only |
+| Povprečna hitrost vetra | `wind_speed_average_kmh` | km/h | Primary only |
 | Tlak na postaji | `station_pressure_hpa` | hPa | Primary only |
 | Padavine 10 min | `precipitation_accumulated_mm` | mm | Primary only |
 | Intenzivnost padavin | `precipitation_rate` | mm/h | Primary only |
-| Visina snega | `snow_depth_cm` | cm | Primary only |
+| Višina snega | `snow_depth_cm` | cm | Primary only |
 | Padavine 1h | `precipitation_1h_accumulated_mm` | mm | Primary only |
 | Padavine 12h | `precipitation_12h_accumulated_mm` | mm | Primary only |
 | Padavine 24h | `precipitation_24h_accumulated_mm` | mm | Primary only |
 | Temperatura vode | `water_temperature` | C | Primary only |
-| Globalno soncno sevanje | `global_solar_radiation_wm2` | W/m2 | Primary only |
-| Povpr. globalno soncno sevanje | `global_solar_radiation_average_wm2` | W/m2 | Primary only |
-| Difuzno soncno sevanje | `diffuse_solar_radiation_wm2` | W/m2 | Primary only |
-| Povpr. difuzno soncno sevanje | `diffuse_solar_radiation_average_wm2` | W/m2 | Primary only |
+| Globalno sončno sevanje | `global_solar_radiation_wm2` | W/m2 | Primary only |
+| Povpr. globalno sončno sevanje | `global_solar_radiation_average_wm2` | W/m2 | Primary only |
+| Difuzno sončno sevanje | `diffuse_solar_radiation_wm2` | W/m2 | Primary only |
+| Povpr. difuzno sončno sevanje | `diffuse_solar_radiation_average_wm2` | W/m2 | Primary only |
 | Vidljivost | `visibility_km` | km | Primary only |
 | Temperatura na 5 cm | `temperature_at_5cm` | C | Primary only |
 | Povpr. temperatura na 5 cm | `temperature_average_at_5cm` | C | Primary only |
@@ -163,6 +163,8 @@ Always enabled. Provides a `weather` entity and up to 35 sensor entities per loc
 | Povpr. temperatura tal 30 cm | `ground_temperature_average_at_30cm` | C | Primary only |
 | Temperatura tal 50 cm | `ground_temperature_at_50cm` | C | Primary only |
 | Povpr. temperatura tal 50 cm | `ground_temperature_average_at_50cm` | C | Primary only |
+
+**Note on entity IDs:** HA auto-generates entity IDs from the device name and sensor name. For example, with device "ARSO Weather Ljubljana" and sensor "Temperatura", the entity ID becomes `sensor.arso_weather_ljubljana_temperatura`. Sensor names are in Slovenian, so entity IDs contain Slovenian words.
 
 Sensors only appear when the station provides data for the field. Primary stations provide all ~35 sensors; secondary stations provide ~6.
 
@@ -421,13 +423,13 @@ forecast_type: daily
 type: entities
 title: ARSO Ljubljana
 entities:
-  - entity: sensor.arso_weather_ljubljana_temperature
-  - entity: sensor.arso_weather_ljubljana_relative_humidity_percent
-  - entity: sensor.arso_weather_ljubljana_mean_sea_level_pressure_hpa
-  - entity: sensor.arso_weather_ljubljana_wind_speed_kmh
-  - entity: sensor.arso_weather_ljubljana_max_wind_gust_kmh
-  - entity: sensor.arso_weather_ljubljana_dew_point
-  - entity: sensor.arso_weather_ljubljana_visibility_km
+  - entity: sensor.arso_weather_ljubljana_temperatura
+  - entity: sensor.arso_weather_ljubljana_relativna_vlaznost
+  - entity: sensor.arso_weather_ljubljana_zracni_tlak
+  - entity: sensor.arso_weather_ljubljana_hitrost_vetra
+  - entity: sensor.arso_weather_ljubljana_sunki_vetra
+  - entity: sensor.arso_weather_ljubljana_rosisce
+  - entity: sensor.arso_weather_ljubljana_vidljivost
 ```
 
 ### Weather Warnings Card
@@ -437,15 +439,15 @@ type: entities
 title: Vremenska opozorila
 entities:
   - entity: binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo
-  - entity: sensor.arso_opozorila_ljubljana_opozorila
+  - entity: sensor.arso_opozorila_ljubljana_vremenska_opozorila
   - type: attribute
-    entity: sensor.arso_opozorila_ljubljana_opozorila
-    attribute: najvisja_stopnja
-    name: Najvišja stopnja
+    entity: sensor.arso_opozorila_ljubljana_vremenska_opozorila
+    attribute: regija
+    name: Regija
   - type: attribute
-    entity: sensor.arso_opozorila_ljubljana_opozorila
-    attribute: tipi
-    name: Aktivni tipi
+    entity: sensor.arso_opozorila_ljubljana_vremenska_opozorila
+    attribute: stevilo_opozoril
+    name: Število opozoril
 ```
 
 ### Air Quality -- Entities Card
@@ -454,24 +456,24 @@ entities:
 type: entities
 title: Kakovost zraka - Ljubljana
 entities:
-  - entity: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
+  - entity: sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad
     name: EAQI
   - type: attribute
-    entity: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
-    attribute: eaqi_label
-    name: Ocena
+    entity: sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad
+    attribute: eaqi_index
+    name: EAQI indeks (1-6)
   - type: attribute
-    entity: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
+    entity: sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad
     attribute: pm10
     name: PM10
     suffix: " ug/m3"
   - type: attribute
-    entity: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
+    entity: sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad
     attribute: pm2.5
     name: PM2.5
     suffix: " ug/m3"
   - type: attribute
-    entity: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
+    entity: sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad
     attribute: o3
     name: O3
     suffix: " ug/m3"
@@ -481,29 +483,30 @@ entities:
 
 ```yaml
 type: tile
-entity: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
+entity: sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad
 name: Kakovost zraka
 icon: mdi:air-filter
+tap_action:
+  action: more-info
 card_mod:
   style: |
     ha-card {
-      {% set eaqi = states('sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi') | int(0) %}
+      {% set eaqi = state_attr('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad', 'eaqi_index') | int(0) %}
       {% if eaqi == 1 %}
-        background-color: #2ecc71 !important;
+        --tile-color: #2ecc71 !important;
       {% elif eaqi == 2 %}
-        background-color: #a3d977 !important;
+        --tile-color: #a3d977 !important;
       {% elif eaqi == 3 %}
-        background-color: #f1c40f !important;
+        --tile-color: #f1c40f !important;
       {% elif eaqi == 4 %}
-        background-color: #f39c12 !important;
+        --tile-color: #f39c12 !important;
       {% elif eaqi == 5 %}
-        background-color: #e74c3c !important;
+        --tile-color: #e74c3c !important;
       {% elif eaqi == 6 %}
-        background-color: #8b0000 !important;
+        --tile-color: #8b0000 !important;
       {% else %}
-        background-color: #9e9e9e !important;
+        --tile-color: #9e9e9e !important;
       {% endif %}
-      color: white !important;
     }
 ```
 
@@ -529,19 +532,19 @@ card_mod:
 automation:
   - alias: "Obvestilo o slabi kakovosti zraka"
     trigger:
-      - platform: numeric_state
-        entity_id: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
-        above: 3
+      - platform: template
+        value_template: >
+          {{ state_attr('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad', 'eaqi_index') | int(0) > 3 }}
     action:
       - service: notify.mobile_app_your_phone
         data:
           title: "Kakovost zraka"
           message: >
-            Kakovost zraka v Ljubljani je {{
-              state_attr('sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi', 'eaqi_label')
-            }} (EAQI {{ states('sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi') }}).
-            PM10: {{ state_attr('sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi', 'pm10') }} ug/m3,
-            PM2.5: {{ state_attr('sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi', 'pm2.5') }} ug/m3.
+            Kakovost zraka v Ljubljani je
+            {{ states('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad') }}
+            (EAQI {{ state_attr('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad', 'eaqi_index') }}).
+            PM10: {{ state_attr('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad', 'pm10') }} ug/m3,
+            PM2.5: {{ state_attr('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad', 'pm2.5') }} ug/m3.
 ```
 
 ### Close Windows Automation Based on Air Quality
@@ -550,9 +553,9 @@ automation:
 automation:
   - alias: "Zapri okna ob slabem zraku"
     trigger:
-      - platform: numeric_state
-        entity_id: sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi
-        above: 4
+      - platform: template
+        value_template: >
+          {{ state_attr('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad', 'eaqi_index') | int(0) > 4 }}
     condition:
       - condition: state
         entity_id: cover.living_room_window
@@ -566,7 +569,7 @@ automation:
           title: "Okna zaprta"
           message: >
             Okna so bila zaprta zaradi slabe kakovosti zraka
-            (EAQI {{ states('sensor.arso_kakovost_zraka_ljubljana_bezigrad_eaqi') }}).
+            ({{ states('sensor.arso_kakovost_zraka_eaqi_ljubljana_bezigrad') }}).
 ```
 
 ### Weather Warning Notification
@@ -583,10 +586,9 @@ automation:
         data:
           title: "Vremensko opozorilo"
           message: >
-            Aktivna opozorila za {{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'regija') }}:
+            Aktivna opozorila ({{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'stevilo_opozoril') }}):
             {{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'tipi') | join(', ') }}.
-            Najvišja stopnja: {{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'najvisja_stopnja') }}/4
-            ({{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'najvisja_barva') }}).
+            Najvišja stopnja: {{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'najvisja_stopnja') }}/4.
 ```
 
 ---
