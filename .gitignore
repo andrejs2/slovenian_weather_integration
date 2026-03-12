@@ -17,3 +17,4 @@ __pycache__/
 
 # Claude Code local state
 .claude/
+CLAUDE.md
