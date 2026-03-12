@@ -1,0 +1,19 @@
+# Development docs (local only)
+docs/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Logs and screenshots (root level only)
+/*.log
+/*.png
+/*.PNG
+/*.JPG
+
+# Claude Code local state
+.claude/

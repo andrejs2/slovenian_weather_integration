@@ -1,0 +1,143 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "ARSO Vreme",
+                "description": "Izberite lokacijo ARSO vremenske postaje.",
+                "data": {
+                    "location": "Lokacija"
+                }
+            },
+            "modules": {
+                "title": "Izbira modulov",
+                "description": "Izberite dodatne module. Vremenska napoved je vedno omogočena.",
+                "data": {
+                    "webcams": "Spletne kamere",
+                    "text_forecast": "Besedilna napoved (TTS)",
+                    "bio_weather": "Biovreme (UV, cvetni prah)",
+                    "mountain": "Gorski svet",
+                    "ski_resorts": "Smučišča",
+                    "radar": "Radarska slika",
+                    "agrometeo": "Agrometeo",
+                    "air_quality": "Kakovost zraka",
+                    "utci": "UTCI (toplotni občutek)",
+                    "warnings": "Vremenska opozorila"
+                }
+            },
+            "webcam_locations": {
+                "title": "Izbira lokacij spletnih kamer",
+                "description": "Izberite vremenske postaje, katerih kamere želite videti.",
+                "data": {
+                    "webcam_locations": "Lokacije kamer"
+                }
+            },
+            "mountain_regions": {
+                "title": "Izbira gorskih območij",
+                "description": "Izberite gorska območja za višinsko napoved (temperatura, veter, vlaga po nadmorskih višinah).",
+                "data": {
+                    "mountain_regions": "Gorska območja"
+                }
+            },
+            "ski_resorts": {
+                "title": "Izbira smučišč",
+                "description": "Izberite smučišča, ki jih želite spremljati.",
+                "data": {
+                    "ski_resorts": "Smučišča"
+                }
+            },
+            "agro_stations": {
+                "title": "Izbira agrometeo postaj",
+                "description": "Izberite agrometeo postaje za spremljanje (temperatura tal, evapotranspiracija, vodna bilanca).",
+                "data": {
+                    "agro_stations": "Agrometeo postaje"
+                }
+            },
+            "aq_stations": {
+                "title": "Izbira postaj za kakovost zraka",
+                "description": "Izberite merilne postaje za kakovost zraka (PM10, PM2.5, O3, NO2, SO2, CO).",
+                "data": {
+                    "aq_stations": "Postaje za kakovost zraka"
+                }
+            },
+            "utci_stations": {
+                "title": "Izbira UTCI postaj",
+                "description": "Izberite postaje za UTCI toplotni občutek (~3 dni urna napoved).",
+                "data": {
+                    "utci_stations": "UTCI postaje"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Povezava z ARSO API ni uspela.",
+            "invalid_location_data": "Neveljavni podatki o lokacijah iz ARSO.",
+            "no_locations_found": "Lokacije niso bile najdene.",
+            "invalid_selection": "Neveljavna izbira lokacije."
+        },
+        "abort": {
+            "already_configured": "Ta lokacija je že nastavljena.",
+            "location_exists": "Ta lokacija je že nastavljena."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "ARSO Vreme - Moduli",
+                "description": "Omogočite ali onemogočite module. Vremenska napoved je vedno omogočena.",
+                "data": {
+                    "webcams": "Spletne kamere",
+                    "text_forecast": "Besedilna napoved (TTS)",
+                    "bio_weather": "Biovreme (UV, cvetni prah)",
+                    "mountain": "Gorski svet",
+                    "ski_resorts": "Smučišča",
+                    "radar": "Radarska slika",
+                    "agrometeo": "Agrometeo",
+                    "air_quality": "Kakovost zraka",
+                    "utci": "UTCI (toplotni občutek)",
+                    "warnings": "Vremenska opozorila"
+                }
+            },
+            "webcam_locations": {
+                "title": "Izbira lokacij spletnih kamer",
+                "description": "Izberite vremenske postaje, katerih kamere želite videti.",
+                "data": {
+                    "webcam_locations": "Lokacije kamer"
+                }
+            },
+            "mountain_regions": {
+                "title": "Izbira gorskih območij",
+                "description": "Izberite gorska območja za višinsko napoved.",
+                "data": {
+                    "mountain_regions": "Gorska območja"
+                }
+            },
+            "ski_resorts": {
+                "title": "Izbira smučišč",
+                "description": "Izberite smučišča, ki jih želite spremljati.",
+                "data": {
+                    "ski_resorts": "Smučišča"
+                }
+            },
+            "agro_stations": {
+                "title": "Izbira agrometeo postaj",
+                "description": "Izberite agrometeo postaje za spremljanje.",
+                "data": {
+                    "agro_stations": "Agrometeo postaje"
+                }
+            },
+            "aq_stations": {
+                "title": "Izbira postaj za kakovost zraka",
+                "description": "Izberite merilne postaje za kakovost zraka.",
+                "data": {
+                    "aq_stations": "Postaje za kakovost zraka"
+                }
+            },
+            "utci_stations": {
+                "title": "Izbira UTCI postaj",
+                "description": "Izberite postaje za UTCI toplotni občutek.",
+                "data": {
+                    "utci_stations": "UTCI postaje"
+                }
+            }
+        }
+    }
+}

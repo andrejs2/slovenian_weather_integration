@@ -1,0 +1,35 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "ARSO Vreme",
+                "description": "Izberite lokacijo ARSO vremenske postaje.",
+                "data": {
+                    "location": "Lokacija"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Povezava z ARSO API ni uspela.",
+            "invalid_location_data": "Neveljavni podatki o lokacijah iz ARSO.",
+            "no_locations_found": "Lokacije niso bile najdene.",
+            "invalid_selection": "Neveljavna izbira lokacije."
+        },
+        "abort": {
+            "already_configured": "Ta lokacija je že nastavljena.",
+            "location_exists": "Ta lokacija je že nastavljena."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Možnosti ARSO Vreme",
+                "description": "Spremenite nastavitve za integracijo ARSO Vreme.",
+                "data": {
+                    "enable_weather": "Omogoči platformo za vreme",
+                    "enable_sensor": "Omogoči platformo za senzorje"
+                }
+            }
+        }
+    }
+}

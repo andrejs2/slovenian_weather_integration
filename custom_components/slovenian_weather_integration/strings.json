@@ -1,0 +1,143 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "ARSO Weather",
+                "description": "Select the ARSO weather station location.",
+                "data": {
+                    "location": "Location"
+                }
+            },
+            "modules": {
+                "title": "Select Modules",
+                "description": "Choose which additional modules to enable. Weather is always enabled.",
+                "data": {
+                    "webcams": "Webcams",
+                    "text_forecast": "Text Forecast (TTS)",
+                    "bio_weather": "Bio-Weather (UV, Pollen)",
+                    "mountain": "Mountain Forecast",
+                    "ski_resorts": "Ski Resorts",
+                    "radar": "Radar Images",
+                    "agrometeo": "Agrometeo",
+                    "air_quality": "Air Quality",
+                    "utci": "UTCI (Thermal Comfort)",
+                    "warnings": "Weather Warnings"
+                }
+            },
+            "webcam_locations": {
+                "title": "Select Webcam Locations",
+                "description": "Choose weather stations whose webcams you want to see.",
+                "data": {
+                    "webcam_locations": "Webcam Locations"
+                }
+            },
+            "mountain_regions": {
+                "title": "Select Mountain Regions",
+                "description": "Choose mountain regions for elevation-based forecasts.",
+                "data": {
+                    "mountain_regions": "Mountain Regions"
+                }
+            },
+            "ski_resorts": {
+                "title": "Select Ski Resorts",
+                "description": "Choose which ski resorts to monitor.",
+                "data": {
+                    "ski_resorts": "Ski Resorts"
+                }
+            },
+            "agro_stations": {
+                "title": "Select Agrometeo Stations",
+                "description": "Choose agrometeo stations to monitor (soil temperature, evapotranspiration, water balance).",
+                "data": {
+                    "agro_stations": "Agrometeo Stations"
+                }
+            },
+            "aq_stations": {
+                "title": "Select Air Quality Stations",
+                "description": "Choose air quality monitoring stations (PM10, PM2.5, O3, NO2, SO2, CO).",
+                "data": {
+                    "aq_stations": "Air Quality Stations"
+                }
+            },
+            "utci_stations": {
+                "title": "Select UTCI Stations",
+                "description": "Choose stations for UTCI thermal comfort index (~3 day hourly forecast).",
+                "data": {
+                    "utci_stations": "UTCI Stations"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Cannot connect to ARSO API.",
+            "invalid_location_data": "Invalid location data received from ARSO.",
+            "no_locations_found": "No locations found.",
+            "invalid_selection": "Invalid location selected."
+        },
+        "abort": {
+            "already_configured": "This location is already configured.",
+            "location_exists": "This location is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "ARSO Weather Modules",
+                "description": "Enable or disable modules. Weather is always enabled.",
+                "data": {
+                    "webcams": "Webcams",
+                    "text_forecast": "Text Forecast (TTS)",
+                    "bio_weather": "Bio-Weather (UV, Pollen)",
+                    "mountain": "Mountain Forecast",
+                    "ski_resorts": "Ski Resorts",
+                    "radar": "Radar Images",
+                    "agrometeo": "Agrometeo",
+                    "air_quality": "Air Quality",
+                    "utci": "UTCI (Thermal Comfort)",
+                    "warnings": "Weather Warnings"
+                }
+            },
+            "webcam_locations": {
+                "title": "Select Webcam Locations",
+                "description": "Choose weather stations whose webcams you want to see.",
+                "data": {
+                    "webcam_locations": "Webcam Locations"
+                }
+            },
+            "mountain_regions": {
+                "title": "Select Mountain Regions",
+                "description": "Choose mountain regions for elevation-based forecasts.",
+                "data": {
+                    "mountain_regions": "Mountain Regions"
+                }
+            },
+            "ski_resorts": {
+                "title": "Select Ski Resorts",
+                "description": "Choose which ski resorts to monitor.",
+                "data": {
+                    "ski_resorts": "Ski Resorts"
+                }
+            },
+            "agro_stations": {
+                "title": "Select Agrometeo Stations",
+                "description": "Choose agrometeo stations to monitor.",
+                "data": {
+                    "agro_stations": "Agrometeo Stations"
+                }
+            },
+            "aq_stations": {
+                "title": "Select Air Quality Stations",
+                "description": "Choose air quality monitoring stations.",
+                "data": {
+                    "aq_stations": "Air Quality Stations"
+                }
+            },
+            "utci_stations": {
+                "title": "Select UTCI Stations",
+                "description": "Choose stations for UTCI thermal comfort index.",
+                "data": {
+                    "utci_stations": "UTCI Stations"
+                }
+            }
+        }
+    }
+}
