@@ -72,6 +72,7 @@ class ArsoWeatherEntity(
 
     _attr_has_entity_name = True
     _attr_name = None
+    _attr_attribution = "Vir podatkov: Agencija RS za okolje"
 
     _attr_supported_features = (
         WeatherEntityFeature.FORECAST_HOURLY
