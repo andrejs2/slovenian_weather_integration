@@ -1,5 +1,6 @@
 # Development docs (local only)
 docs/
+scratch/
 
 # Python cache
 __pycache__/
