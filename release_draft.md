@@ -1,4 +1,4 @@
-## What's new in v2.0.0-beta.1
+## What's new in v2.0.0-beta.2
 
 > **This is a beta release.** Please report any issues on [GitHub Issues](https://github.com/andrejs2/slovenian_weather_integration/issues). Your feedback helps make the stable v2.0.0 release solid.
 >
@@ -11,7 +11,7 @@ Complete rewrite of the integration — from a single weather entity to a full m
 | Module | Description |
 |--------|-------------|
 | **Weather** | Weather entity with current conditions, hourly/daily/twice-daily forecasts |
-| **Webcams** | Live webcam images from ARSO weather stations |
+| **Webcams** | Live webcam images from 51 ARSO weather stations |
 | **Text forecast** | Regional text forecast (today, tomorrow, outlook) + audio forecast MP3 |
 | **Bio-weather** | Biometeorology forecast (UV index, pollen, health effects) |
 | **Mountain forecast** | Mountain weather by region with altitude-based data |
@@ -26,14 +26,21 @@ Complete rewrite of the integration — from a single weather entity to a full m
 ### Key improvements
 
 - **Modular config flow** — enable only the modules you need; each module has its own coordinator and update interval
-- **Real-time weather conditions** — now uses the official API observation data instead of forecast proxy, ensuring accurate current weather state (e.g. correctly shows rain when ARSO reports rain)
+- **Real-time weather conditions** — now uses the official ARSO observation API for accurate current state (correctly shows rain when ARSO reports rain)
 - **247 locations** — all ARSO locations available, not just primary weather stations
 - **~105 primary stations** — detailed observations with 50+ fields (dew point, visibility, ground temps, solar radiation, etc.)
 - **EAQI sensor** — European Air Quality Index with per-pollutant breakdown (PM2.5, PM10, O3, NO2, SO2)
 - **Avalanche bulletin** — EAWS/CAAMLv6 data for 29 alpine regions across Slovenia (11), Carinthia/Koroška (12), and Styria/Štajerska (6), with elevation-based danger ratings, avalanche problems, and detailed text forecasts
 - **Audio forecast** — ARSO prognostik voice forecast MP3 URL on text forecast sensors (`audio_url` attribute), playable via `media_player.play_media`
+- **Webcam module** — dedicated ARSO webcam JSON API with 51 stations and automatic direction detection (no more stale images)
 - **Precipitation fix** — no-rain correctly shows 0 mm instead of "unavailable"
 - **Data source attribution** — "Vir podatkov: Agencija RS za okolje"
+
+### Changes in beta.2
+
+- **Webcam images fix** — rewrote webcam module to use dedicated ARSO webcam JSON API instead of `observationAms`, which could serve cached/stale image URLs causing 404 errors
+- **Webcam station selection** — config flow now shows only 51 stations with webcams (instead of all 107 primary stations)
+- **Simplified webcam architecture** — single image entity class for all webcam locations
 
 ### Upgrading from v1.x
 
@@ -53,9 +60,10 @@ Complete rewrite of the integration — from a single weather entity to a full m
 All data from [ARSO](https://www.arso.gov.si/) (Agencija Republike Slovenije za okolje) and [EAWS](https://www.avalanches.org/) (European Avalanche Warning Services):
 - Official API (`vreme.arso.gov.si`)
 - Station observations (`meteo.arso.gov.si`)
+- Webcam JSON API (`vreme.arso.gov.si`)
 - Air quality (`www.arso.gov.si`)
 - Avalanche bulletins (`static.lawinen-warnung.eu`, `static.avalanche.report`) — EAWS CAAMLv6
 
 ---
 
-**Full Changelog**: https://github.com/andrejs2/slovenian_weather_integration/compare/v1.3.1...v2.0.0-beta.1
+**Full Changelog**: https://github.com/andrejs2/slovenian_weather_integration/compare/v1.3.1...v2.0.0-beta.2

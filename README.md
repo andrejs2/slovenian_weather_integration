@@ -52,7 +52,7 @@ ARSO Weather v2.0.0 provides 12 modules:
 | # | Module | Description |
 |---|--------|-------------|
 | 1 | **Weather** (core) | Current conditions + hourly/daily/twice-daily forecasts, 35 sensor entities per location |
-| 2 | **Webcams** | Live webcam images from ARSO stations, up to 8 compass directions per location |
+| 2 | **Webcams** | Live webcam images from 51 ARSO stations, up to 8 compass directions per location |
 | 3 | **Text Forecast** | National text forecast (Besedilna napoved), outlook, and weather map image |
 | 4 | **Bio-Weather** | Bio-weather index, UV index, and pollen information |
 | 5 | **Mountain Forecast** | Mountain weather for 8 regions, temperature and wind at multiple elevations |
@@ -172,7 +172,7 @@ Sensors only appear when the station provides data for the field. Primary statio
 
 ### 2. Webcams
 
-Provides `image` entities with live webcam snapshots. Each location may have up to 8 directional cameras (N, NE, E, SE, S, SW, W, NW). Updated every 15 minutes.
+Provides `image` entities with live webcam snapshots from 51 ARSO weather stations. Each location may have up to 8 directional cameras (N, NE, E, SE, S, SW, W, NW). Uses the dedicated ARSO webcam JSON API for always-fresh image URLs. Updated every 15 minutes.
 
 ### 3. Text Forecast (Besedilna napoved)
 
@@ -681,7 +681,7 @@ All data is sourced from the Slovenian Environmental Agency (ARSO) and the Europ
 
 | Domain | Purpose |
 |--------|---------|
-| `vreme.arso.gov.si` | Official API (`/api/1.0/`) and static files (`/uploads/probase/`) |
+| `vreme.arso.gov.si` | Official API (`/api/1.0/`), static files (`/uploads/probase/`), webcam JSON API |
 | `meteo.arso.gov.si` | Static files (`/uploads/probase/`) -- weather, agrometeo, UTCI, radar, warnings |
 | `www.arso.gov.si` | Air quality XML data (`/xml/zrak/`) -- separate server |
 | `static.lawinen-warnung.eu` | EAWS avalanche bulletins (SI, AT-06 Styria) |

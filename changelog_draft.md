@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.0-beta.2] — 2026-03-13
+
+### Fixed
+- **Webcam images showing stale/404 data** — rewrote webcam module to use the dedicated ARSO webcam JSON API (`webcam_METEO-{id}_{dir}_data.json`) instead of `observationAms`, which could serve cached responses with outdated image URLs
+
+### Changed
+- **Webcam station selection** — config flow now shows only 51 stations that actually have webcams (instead of all 107 primary stations)
+- **Webcam architecture simplified** — single `ArsoWebcamImage` entity class for all locations, using `webcam_client.py` and `webcam_stations.py`
+
 ## [2.0.0-beta.1] — 2026-03-13
 
 ### Added
