@@ -24,9 +24,9 @@
 
 ## Overview
 
-**ARSO Weather** is a comprehensive Home Assistant custom integration for Slovenian weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). Version **2.0.0** introduces a fully modular architecture with **11 independent modules**, covering 247 locations across Slovenia and neighboring regions.
+**ARSO Weather** is a comprehensive Home Assistant custom integration for Slovenian weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). Version **2.0.0** introduces a fully modular architecture with **12 independent modules**, covering 247 locations across Slovenia and neighboring regions.
 
-Each module can be individually enabled or disabled through the integration's configuration UI. Data is sourced directly from official ARSO APIs, XML feeds, CSV endpoints, and HTML pages -- no third-party services involved.
+Each module can be individually enabled or disabled through the integration's configuration UI. Data is sourced directly from official ARSO APIs, XML feeds, CSV endpoints, and HTML pages, with avalanche data from the European Avalanche Warning Services (EAWS).
 
 ---
 
@@ -40,14 +40,14 @@ This integration is **not** an official integration of the Slovenian Environment
 
 - **Requires Home Assistant 2024.4.0 or newer** (uses `entry.runtime_data`).
 - The integration is now fully modular. Only the core **Weather** module is enabled by default.
-- All additional modules (Webcams, Text Forecast, Bio-Weather, Mountain, Ski Resorts, Radar, Agrometeo, Air Quality, UTCI, Weather Warnings) must be explicitly enabled via **Settings > Devices & Services > ARSO Weather > Configure**.
+- All additional modules (Webcams, Text Forecast, Bio-Weather, Mountain, Ski Resorts, Radar, Agrometeo, Air Quality, UTCI, Weather Warnings, Avalanche) must be explicitly enabled via **Settings > Devices & Services > ARSO Weather > Configure**.
 - Existing installations upgrading from v1.x will continue to work with weather-only functionality. To access new modules, reconfigure the integration entry and select the desired modules.
 
 ---
 
 ## Features
 
-ARSO Weather v2.0.0 provides 11 modules:
+ARSO Weather v2.0.0 provides 12 modules:
 
 | # | Module | Description |
 |---|--------|-------------|
@@ -62,6 +62,7 @@ ARSO Weather v2.0.0 provides 11 modules:
 | 9 | **Air Quality** | 23 monitoring stations: PM10, PM2.5, O3, NO2, SO2, CO with European Air Quality Index (EAQI) |
 | 10 | **UTCI** | Thermal comfort index (Universal Thermal Climate Index) for 13 stations, 3-day hourly forecast |
 | 11 | **Weather Warnings** | 10 warning types across 5 regions, 4 severity levels, binary sensors for automations |
+| 12 | **Avalanche** | Avalanche danger bulletin (EAWS) for 29 alpine regions across Slovenia, Carinthia (AT), and Styria (AT) |
 
 ---
 
@@ -97,11 +98,12 @@ ARSO Weather v2.0.0 provides 11 modules:
    - **Agrometeo stations** -- choose from 36 agricultural weather stations
    - **Air quality stations** -- select from 23 air quality monitoring stations
    - **UTCI stations** -- choose from 13 thermal comfort stations
+   - **Avalanche regions** -- select alpine regions for avalanche danger bulletin (EAWS)
 6. Weather Warnings are automatically configured based on your location's coordinates (region auto-detection).
 
 You can reconfigure modules at any time via **Configure** on the integration entry. Multiple locations can be added as separate entries.
 
-**Important**: Global modules (Text Forecast, Bio-Weather, Mountain, Ski Resorts, Radar, Agrometeo, Air Quality, UTCI) provide national data. Only one config entry should enable each global module.
+**Important**: Global modules (Text Forecast, Bio-Weather, Mountain, Ski Resorts, Radar, Agrometeo, Air Quality, UTCI, Avalanche) provide national data. Only one config entry should enable each global module.
 
 ---
 
@@ -183,6 +185,8 @@ National text forecast with 3 sensor entities:
 | Vremenska slika | Weather map image URL |
 
 Sensor state is truncated to 255 characters (HA limit). The `full_text` attribute always contains the complete text, suitable for TTS and automations.
+
+The text forecast sensors also include an `audio_url` attribute with a direct link to ARSO's prognostik voice recording (MP3). This can be played on any media player via `media_player.play_media`.
 
 ### 4. Bio-Weather (Biovreme)
 
@@ -363,6 +367,49 @@ Only warnings with level >= 2 include detailed CAP XML data (description, instru
 | SLOVENIA_SOUTH-WEST | Jugozahodna Slovenija |
 | SLOVENIA_SOUTH-EAST | Jugovzhodna Slovenija |
 
+### 12. Avalanche Bulletin (Snezni plazovi)
+
+Avalanche danger bulletin from the European Avalanche Warning Services (EAWS) covering 29 alpine regions across 3 countries:
+
+| Source | Regions | Server |
+|--------|---------|--------|
+| Slovenia (SI) | 11 regions | `lawinen-warnung.eu` (Slovenian) |
+| Carinthia/Koroska (AT-02) | 12 border regions | `avalanche.report` (German) |
+| Styria/Stajerska (AT-06) | 6 border regions | `lawinen-warnung.eu` (Slovenian) |
+
+Per-region sensor entities showing:
+- **State**: Danger label with level, e.g. "Zmerna (2)"
+- **Attributes**: danger ratings by elevation (high/low), avalanche problems with aspects and elevation bands, text forecasts (activity, snowpack, weather, tendency), publication time, validity period, and a reference link to the ARSO avalanche information page
+
+**Danger levels (5):**
+
+| Level | Slovenian | English | Description |
+|-------|-----------|---------|-------------|
+| 1 | Majhna | Low | Well bonded and stable snowpack |
+| 2 | Zmerna | Moderate | Moderately bonded on some steep slopes |
+| 3 | Znatna | Considerable | Moderately to poorly bonded on many steep slopes |
+| 4 | Velika | High | Poorly bonded on most steep slopes |
+| 5 | Zelo velika | Very high | Generally very unstable, numerous spontaneous avalanches |
+
+**Avalanche problem types:**
+
+| Type | Slovenian | English |
+|------|-----------|---------|
+| new_snow | Nov sneg | New snow |
+| wind_slab | Kloze | Wind slab |
+| persistent_weak_layers | Starejse sibke plasti | Persistent weak layers |
+| wet_snow | Moker sneg | Wet snow |
+| gliding_snow | Plazenje snega | Gliding snow |
+| cornices | Opasti | Cornices |
+
+**Available regions (29):**
+
+*Slovenia (11):* Zahodne Karavanke, Osrednje Karavanke, Kamniske Alpe, Savinjske Alpe in Koroska, Zahodne Julijske Alpe, Osrednje Julijske Alpe, Vzhodne Julijske Alpe, Juzno predgorje Julijskih Alp, Juzne Julijske Alpe, Vzhodno predgorje Julijskih Alp, Javorniki in Sneznik
+
+*Carinthia/Koroska AT (12):* Karavanke zahod, Karavanke sredina, Karavanke vzhod, Karnijske Alpe Lesachtal, Karnijske Alpe Plöckenpass, Karnijske Alpe Nassfeld, Karnijske Alpe Oisternig, Ziljske Alpe zahod, Ziljske Alpe sredina, Ziljske Alpe vzhod, Beljaska Alpa, Kreuzeckgruppe
+
+*Styria/Stajerska AT (6):* Vzhodna Koralpa, Murske gore/Krske Alpe, Seetalske Alpe, Stub in Gleinalpe, Juzni Schladmingski Tauern, Juzni Wölzer Tauern
+
 ---
 
 ## Weather Entity
@@ -448,6 +495,24 @@ entities:
     entity: sensor.arso_opozorila_ljubljana_vremenska_opozorila
     attribute: stevilo_opozoril
     name: Število opozoril
+```
+
+### Avalanche Bulletin Card
+
+```yaml
+type: entities
+title: Snezni plazovi
+entities:
+  - entity: sensor.arso_snezni_plazovi_plazovi_osrednje_julijske_alpe
+  - type: attribute
+    entity: sensor.arso_snezni_plazovi_plazovi_osrednje_julijske_alpe
+    attribute: opis_stopnje
+    name: Opis nevarnosti
+  - type: attribute
+    entity: sensor.arso_snezni_plazovi_plazovi_osrednje_julijske_alpe
+    attribute: meja_nadmorske_visine
+    name: Meja nadmorske visine
+    suffix: " m"
 ```
 
 ### Air Quality -- Entities Card
@@ -591,22 +656,42 @@ automation:
             Najvišja stopnja: {{ state_attr('binary_sensor.arso_opozorila_ljubljana_aktivno_opozorilo', 'najvisja_stopnja') }}/4.
 ```
 
+### Play ARSO Audio Forecast
+
+```yaml
+automation:
+  - alias: "Predvajaj jutranjo napoved ARSO"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    action:
+      - service: media_player.play_media
+        target:
+          entity_id: media_player.kitchen_speaker
+        data:
+          media_content_id: "{{ state_attr('sensor.arso_besedilna_napoved_besedilna_napoved', 'audio_url') }}"
+          media_content_type: music
+```
+
 ---
 
 ## Data Sources
 
-All data is sourced from the Slovenian Environmental Agency (ARSO) using three server domains:
+All data is sourced from the Slovenian Environmental Agency (ARSO) and the European Avalanche Warning Services (EAWS):
 
 | Domain | Purpose |
 |--------|---------|
 | `vreme.arso.gov.si` | Official API (`/api/1.0/`) and static files (`/uploads/probase/`) |
 | `meteo.arso.gov.si` | Static files (`/uploads/probase/`) -- weather, agrometeo, UTCI, radar, warnings |
 | `www.arso.gov.si` | Air quality XML data (`/xml/zrak/`) -- separate server |
+| `static.lawinen-warnung.eu` | EAWS avalanche bulletins (SI, AT-06 Styria) |
+| `static.avalanche.report` | EAWS avalanche bulletins (AT-02 Carinthia) |
 
 Data update intervals:
 - Weather and Webcams: every 15 minutes
 - Warnings: every 5 minutes
 - Air Quality: every 45 minutes
+- Avalanche: every 60 minutes
 - All other modules: every 60 minutes
 
 ---

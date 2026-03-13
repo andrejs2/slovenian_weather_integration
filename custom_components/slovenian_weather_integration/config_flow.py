@@ -20,12 +20,14 @@ from .arso_weather.air_quality_client import AQ_STATIONS
 from .arso_weather.utci_client import UTCI_STATIONS
 from .arso_weather.mountain_client import MOUNTAIN_REGIONS
 from .arso_weather.ski_client import SKI_RESORTS
+from .arso_weather.avalanche_client import AVALANCHE_REGIONS
 from .arso_weather.station_map import OBSERVATION_STATIONS
 from .const import (
     DOMAIN,
     GLOBAL_MODULES,
     MODULE_AGROMETEO,
     MODULE_AIR_QUALITY,
+    MODULE_AVALANCHE,
     MODULE_BIO_WEATHER,
     MODULE_UTCI,
     MODULE_MOUNTAIN,
@@ -47,6 +49,7 @@ CONF_WEBCAM_LOCATIONS = "webcam_locations"
 CONF_AGRO_STATIONS = "agro_stations"
 CONF_AQ_STATIONS = "aq_stations"
 CONF_UTCI_STATIONS = "utci_stations"
+CONF_AVALANCHE_REGIONS = "avalanche_regions"
 
 
 def _get_claimed_global_modules(
@@ -89,6 +92,7 @@ def _build_module_schema(
         MODULE_AGROMETEO,
         MODULE_AIR_QUALITY,
         MODULE_UTCI,
+        MODULE_AVALANCHE,
     ):
         if mod not in claimed:
             fields[vol.Optional(mod, default=defaults.get(mod, False))] = bool
@@ -111,6 +115,7 @@ def _extract_modules(user_input: dict, claimed: set[str]) -> dict[str, bool]:
         MODULE_AGROMETEO,
         MODULE_AIR_QUALITY,
         MODULE_UTCI,
+        MODULE_AVALANCHE,
     ):
         result[mod] = (
             user_input.get(mod, False) if mod not in claimed else False
@@ -211,6 +216,8 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_aq_stations()
         if self._modules.get(MODULE_UTCI) and "_utci_stations" not in self._modules:
             return await self.async_step_utci_stations()
+        if self._modules.get(MODULE_AVALANCHE) and "_avalanche_regions" not in self._modules:
+            return await self.async_step_avalanche_regions()
         return self._create_entry()
 
     async def async_step_webcam_locations(
@@ -345,6 +352,28 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="utci_stations", data_schema=schema
         )
 
+    async def async_step_avalanche_regions(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 3g (conditional): Avalanche region selector."""
+        if user_input is not None:
+            self._modules["_avalanche_regions"] = user_input.get(
+                CONF_AVALANCHE_REGIONS, []
+            )
+            return await self._next_conditional_step()
+
+        region_options = {k: k for k in sorted(AVALANCHE_REGIONS.keys())}
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_AVALANCHE_REGIONS, default=[]
+                ): cv.multi_select(region_options),
+            }
+        )
+        return self.async_show_form(
+            step_id="avalanche_regions", data_schema=schema
+        )
+
     def _create_entry(self) -> ConfigFlowResult:
         """Create the config entry with collected data."""
         ski_selection = self._modules.pop("_ski_resorts", [])
@@ -353,6 +382,7 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         agro_selection = self._modules.pop("_agro_stations", [])
         aq_selection = self._modules.pop("_aq_stations", [])
         utci_selection = self._modules.pop("_utci_stations", [])
+        avalanche_selection = self._modules.pop("_avalanche_regions", [])
         options: dict[str, Any] = {"modules": self._modules}
         if ski_selection:
             options[CONF_SKI_RESORTS] = ski_selection
@@ -366,6 +396,8 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             options[CONF_AQ_STATIONS] = aq_selection
         if utci_selection:
             options[CONF_UTCI_STATIONS] = utci_selection
+        if avalanche_selection:
+            options[CONF_AVALANCHE_REGIONS] = avalanche_selection
         return self.async_create_entry(
             title=self._location,
             data={CONF_LOCATION: self._location},
@@ -399,6 +431,7 @@ class ArsoOptionsFlow(OptionsFlow):
         self._agro_done = False
         self._aq_done = False
         self._utci_done = False
+        self._avalanche_done = False
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -432,6 +465,8 @@ class ArsoOptionsFlow(OptionsFlow):
             return await self.async_step_aq_stations()
         if self._modules.get(MODULE_UTCI) and not self._utci_done:
             return await self.async_step_utci_stations()
+        if self._modules.get(MODULE_AVALANCHE) and not self._avalanche_done:
+            return await self.async_step_avalanche_regions()
         return self._save_options()
 
     def _save_options(self) -> ConfigFlowResult:
@@ -467,6 +502,11 @@ class ArsoOptionsFlow(OptionsFlow):
                 "_utci_stations",
                 self.config_entry.options.get(CONF_UTCI_STATIONS, []),
             )
+        if self._modules.get(MODULE_AVALANCHE):
+            options[CONF_AVALANCHE_REGIONS] = self._modules.pop(
+                "_avalanche_regions",
+                self.config_entry.options.get(CONF_AVALANCHE_REGIONS, []),
+            )
         # Clean internal keys
         self._modules.pop("_webcam_locations", None)
         self._modules.pop("_ski_resorts", None)
@@ -474,6 +514,7 @@ class ArsoOptionsFlow(OptionsFlow):
         self._modules.pop("_agro_stations", None)
         self._modules.pop("_aq_stations", None)
         self._modules.pop("_utci_stations", None)
+        self._modules.pop("_avalanche_regions", None)
         return self.async_create_entry(data=options)
 
     async def async_step_webcam_locations(
@@ -629,4 +670,30 @@ class ArsoOptionsFlow(OptionsFlow):
         )
         return self.async_show_form(
             step_id="utci_stations", data_schema=schema
+        )
+
+    async def async_step_avalanche_regions(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Avalanche region selector in options flow."""
+        if user_input is not None:
+            self._modules["_avalanche_regions"] = user_input.get(
+                CONF_AVALANCHE_REGIONS, []
+            )
+            self._avalanche_done = True
+            return await self._next_options_step()
+
+        current_aval = self.config_entry.options.get(
+            CONF_AVALANCHE_REGIONS, []
+        )
+        region_options = {k: k for k in sorted(AVALANCHE_REGIONS.keys())}
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_AVALANCHE_REGIONS, default=current_aval
+                ): cv.multi_select(region_options),
+            }
+        )
+        return self.async_show_form(
+            step_id="avalanche_regions", data_schema=schema
         )

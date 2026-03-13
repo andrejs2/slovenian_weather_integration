@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .arso_weather.agrometeo_client import fetch_agrometeo_data
+from .arso_weather.avalanche_client import fetch_avalanche_data
 from .arso_weather.air_quality_client import fetch_air_quality_data
 from .arso_weather.utci_client import fetch_utci_data
 from .arso_weather.warnings_client import (
@@ -40,6 +41,7 @@ CONF_WEBCAM_LOCATIONS = "webcam_locations"
 CONF_AGRO_STATIONS = "agro_stations"
 CONF_AQ_STATIONS = "aq_stations"
 CONF_UTCI_STATIONS = "utci_stations"
+CONF_AVALANCHE_REGIONS = "avalanche_regions"
 
 # Webcam coordinator
 WEBCAM_UPDATE_INTERVAL = timedelta(minutes=15)
@@ -72,6 +74,9 @@ AQ_UPDATE_INTERVAL = timedelta(minutes=45)  # hourly data
 
 # --- UTCI coordinator ---
 UTCI_UPDATE_INTERVAL = timedelta(minutes=60)  # daily CSV, hourly resolution
+
+# --- Avalanche coordinator ---
+AVALANCHE_UPDATE_INTERVAL = timedelta(minutes=60)  # daily bulletin
 
 # --- Warnings coordinator ---
 WARNINGS_UPDATE_INTERVAL = timedelta(minutes=5)  # fast updates for alerts
@@ -549,6 +554,42 @@ class UtciCoordinator(DataUpdateCoordinator[dict]):
         except Exception as err:
             raise UpdateFailed(
                 f"Error fetching UTCI data: {err}"
+            ) from err
+
+
+class AvalancheCoordinator(DataUpdateCoordinator[dict]):
+    """Manage fetching EAWS/CAAMLv6 avalanche bulletin data.
+
+    Fetches daily avalanche danger ratings and problems for selected
+    Slovenian alpine regions from the European Avalanche Warning Services.
+    """
+
+    config_entry: ArsoConfigEntry
+
+    def __init__(
+        self, hass: HomeAssistant, entry: ArsoConfigEntry
+    ) -> None:
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="ARSO Snežni plazovi",
+            update_interval=AVALANCHE_UPDATE_INTERVAL,
+        )
+        self.config_entry = entry
+        self._session = aiohttp_client.async_get_clientsession(hass)
+
+    async def _async_update_data(self) -> dict:
+        selected: list[str] = self.config_entry.options.get(
+            CONF_AVALANCHE_REGIONS, []
+        )
+        try:
+            async with asyncio.timeout(FORECAST_REQUEST_TIMEOUT):
+                return await fetch_avalanche_data(self._session, selected)
+        except TimeoutError as err:
+            raise UpdateFailed("Timeout fetching avalanche data") from err
+        except Exception as err:
+            raise UpdateFailed(
+                f"Error fetching avalanche data: {err}"
             ) from err
 
 

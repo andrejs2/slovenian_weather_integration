@@ -15,6 +15,13 @@ TEXT_FORECAST_URL = (
     "fcast_si_text.json"
 )
 
+# Audio forecast — MP3 recorded by ARSO prognostik, updated daily.
+# Can be played via media_player.play_media service in HA.
+AUDIO_FORECAST_URL = (
+    "https://www.vreme.si/uploads/probase/www/fproduct/media/sl/"
+    "fcast_si_audio_mbr.mp3"
+)
+
 
 async def fetch_text_forecast(session: aiohttp.ClientSession) -> dict:
     """Fetch and parse text forecast from ARSO.
@@ -44,6 +51,7 @@ def _parse_text_forecast(data: dict) -> dict:
         "outlook": None,
         "weather_image": None,
         "updated": data.get("tsUpdated"),
+        "audio_url": AUDIO_FORECAST_URL,
     }
 
     for section in sections:

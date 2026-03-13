@@ -12,6 +12,7 @@ from .const import (
     DOMAIN,
     MODULE_AGROMETEO,
     MODULE_AIR_QUALITY,
+    MODULE_AVALANCHE,
     MODULE_BIO_WEATHER,
     MODULE_UTCI,
     MODULE_MOUNTAIN,
@@ -30,6 +31,7 @@ from .coordinator import (
     AgrometeoCoordinator,
     AirQualityCoordinator,
     ArsoDataUpdateCoordinator,
+    AvalancheCoordinator,
     UtciCoordinator,
     BioWeatherCoordinator,
     MountainForecastCoordinator,
@@ -106,6 +108,11 @@ async def async_setup_entry(
         utci_coord = UtciCoordinator(hass, entry)
         await utci_coord.async_config_entry_first_refresh()
 
+    avalanche_coord = None
+    if modules.get(MODULE_AVALANCHE):
+        avalanche_coord = AvalancheCoordinator(hass, entry)
+        await avalanche_coord.async_config_entry_first_refresh()
+
     warnings_coord = None
     if modules.get(MODULE_WARNINGS):
         warnings_coord = WarningsCoordinator(hass, entry, coordinator)
@@ -138,6 +145,7 @@ async def async_setup_entry(
         air_quality_coordinator=air_quality_coord,
         utci_coordinator=utci_coord,
         warnings_coordinator=warnings_coord,
+        avalanche_coordinator=avalanche_coord,
         loaded_platforms=platform_list,
     )
 

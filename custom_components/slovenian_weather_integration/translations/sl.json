@@ -21,6 +21,7 @@
                     "agrometeo": "Agrometeo",
                     "air_quality": "Kakovost zraka",
                     "utci": "UTCI (toplotni občutek)",
+                    "avalanche": "Snežni plazovi (EAWS)",
                     "warnings": "Vremenska opozorila"
                 }
             },
@@ -65,6 +66,13 @@
                 "data": {
                     "utci_stations": "UTCI postaje"
                 }
+            },
+            "avalanche_regions": {
+                "title": "Izbira območij za snežne plazove",
+                "description": "Izberite alpska območja za bilten nevarnosti snežnih plazov (EAWS).",
+                "data": {
+                    "avalanche_regions": "Območja za plazove"
+                }
             }
         },
         "error": {
@@ -93,6 +101,7 @@
                     "agrometeo": "Agrometeo",
                     "air_quality": "Kakovost zraka",
                     "utci": "UTCI (toplotni občutek)",
+                    "avalanche": "Snežni plazovi (EAWS)",
                     "warnings": "Vremenska opozorila"
                 }
             },
@@ -136,6 +145,13 @@
                 "description": "Izberite postaje za UTCI toplotni občutek.",
                 "data": {
                     "utci_stations": "UTCI postaje"
+                }
+            },
+            "avalanche_regions": {
+                "title": "Izbira območij za snežne plazove",
+                "description": "Izberite alpska območja za bilten nevarnosti snežnih plazov.",
+                "data": {
+                    "avalanche_regions": "Območja za plazove"
                 }
             }
         }

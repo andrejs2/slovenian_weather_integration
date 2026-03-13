@@ -33,6 +33,7 @@ MODULE_AGROMETEO = "agrometeo"
 MODULE_AIR_QUALITY = "air_quality"
 MODULE_UTCI = "utci"
 MODULE_WARNINGS = "warnings"
+MODULE_AVALANCHE = "avalanche"
 
 # Maps modules to the HA platforms they provide
 MODULE_PLATFORMS: dict[str, list[Platform]] = {
@@ -47,6 +48,7 @@ MODULE_PLATFORMS: dict[str, list[Platform]] = {
     MODULE_AIR_QUALITY: [Platform.SENSOR],
     MODULE_UTCI: [Platform.SENSOR],
     MODULE_WARNINGS: [Platform.SENSOR, Platform.BINARY_SENSOR],
+    MODULE_AVALANCHE: [Platform.SENSOR],
 }
 
 # Modules that provide national (not per-location) data.
@@ -60,6 +62,7 @@ GLOBAL_MODULES: set[str] = {
     MODULE_AGROMETEO,
     MODULE_AIR_QUALITY,
     MODULE_UTCI,
+    MODULE_AVALANCHE,
 }
 
 # Radar image URLs
@@ -94,6 +97,7 @@ class ArsoRuntimeData:
     air_quality_coordinator: DataUpdateCoordinator | None = None
     utci_coordinator: DataUpdateCoordinator | None = None
     warnings_coordinator: DataUpdateCoordinator | None = None
+    avalanche_coordinator: DataUpdateCoordinator | None = None
     loaded_platforms: list[Platform] = field(default_factory=list)
 
 

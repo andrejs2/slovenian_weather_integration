@@ -40,11 +40,13 @@ from .arso_weather.air_quality_client import AQ_STATIONS, EAQI_LABELS, compute_e
 from .arso_weather.utci_client import UTCI_STATIONS
 from .arso_weather.mountain_client import MOUNTAIN_REGIONS
 from .arso_weather.ski_client import SKI_RESORTS
+from .arso_weather.avalanche_client import AVALANCHE_REGIONS
 from .arso_weather.warnings_client import WARNING_REGIONS, WARNING_TYPES
 from .const import (
     DOMAIN,
     MODULE_AGROMETEO,
     MODULE_AIR_QUALITY,
+    MODULE_AVALANCHE,
     MODULE_BIO_WEATHER,
     MODULE_MOUNTAIN,
     MODULE_SKI,
@@ -58,6 +60,7 @@ from .coordinator import (
     ArsoDataUpdateCoordinator,
     CONF_AGRO_STATIONS,
     CONF_AQ_STATIONS,
+    CONF_AVALANCHE_REGIONS,
     CONF_MOUNTAIN_REGIONS,
     CONF_UTCI_STATIONS,
 )
@@ -772,6 +775,28 @@ async def async_setup_entry(
                             )
                         )
 
+    # --- Avalanche sensors ---
+    if modules.get(MODULE_AVALANCHE):
+        aval_coord = entry.runtime_data.avalanche_coordinator
+        selected_aval = entry.options.get(CONF_AVALANCHE_REGIONS, [])
+        if aval_coord and aval_coord.data and selected_aval:
+            aval_device_info = DeviceInfo(
+                identifiers={(DOMAIN, "avalanche")},
+                name="ARSO Snežni plazovi",
+                manufacturer="ARSO",
+                model="Snežni plazovi (EAWS)",
+                entry_type="service",
+            )
+            for region_name in selected_aval:
+                if region_name not in aval_coord.data:
+                    continue
+                entities.append(
+                    ArsoAvalancheSensor(
+                        aval_coord, aval_device_info,
+                        entry.entry_id, region_name,
+                    )
+                )
+
     # --- Warnings sensor ---
     if modules.get(MODULE_WARNINGS):
         warn_coord = entry.runtime_data.warnings_coordinator
@@ -966,6 +991,9 @@ class ArsoTextSensor(
         updated = self.coordinator.data.get("updated")
         if updated:
             attrs["last_updated"] = updated
+        audio_url = self.coordinator.data.get("audio_url")
+        if audio_url:
+            attrs["audio_url"] = audio_url
         return attrs if attrs else None
 
     @property
@@ -1863,3 +1891,109 @@ class ArsoWarningsOverviewSensor(
         if not super().available:
             return False
         return self.coordinator.data is not None
+
+
+# ---------------------------------------------------------------------------
+# Avalanche bulletin sensors
+# ---------------------------------------------------------------------------
+
+
+class ArsoAvalancheSensor(
+    CoordinatorEntity[DataUpdateCoordinator], SensorEntity
+):
+    """Avalanche danger sensor for a Slovenian alpine region.
+
+    State: danger label with level, e.g. "Zmerna (2)".
+    Attributes: danger ratings by elevation, avalanche problems, text forecasts.
+    """
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:landslide"
+    _attr_attribution = "Vir podatkov: EAWS / Agencija RS za okolje"
+
+    _INFO_URL = (
+        "https://meteo.arso.gov.si/met/sl/weather/bulletin/mountain/avalanche/"
+    )
+    _DANGER_SCALE = {
+        1: "Majhna — snežna odeja je dobro povezana in stabilna",
+        2: "Zmerna — na nekaterih strmih pobočjih le zmerno povezana",
+        3: "Znatna — na mnogih strmih pobočjih zmerno do slabo povezana",
+        4: "Velika — na večini strmih pobočij slabo povezana",
+        5: "Zelo velika — splošno zelo nestabilna, številni spontani plazovi",
+    }
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        device_info: DeviceInfo,
+        config_entry_id: str,
+        region_name: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._region_name = region_name
+        self._attr_name = f"Plazovi {region_name}"
+        self._attr_device_info = device_info
+        self._attr_unique_id = (
+            f"{DOMAIN}_{config_entry_id}_avalanche_"
+            f"{region_name.replace(' ', '_').lower()}"
+        )
+
+    def _region_data(self) -> dict | None:
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._region_name)
+
+    @property
+    def native_value(self) -> str | None:
+        data = self._region_data()
+        if not data:
+            return None
+        level = data.get("max_danger_rating", 0)
+        label = data.get("max_danger_label", "—")
+        if level == 0:
+            return "Ni podatkov"
+        return f"{label} ({level})"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        data = self._region_data()
+        if not data:
+            return None
+        level = data.get("max_danger_rating", 0)
+        attrs: dict[str, Any] = {
+            "regija": self._region_name,
+            "regija_id": data.get("region_id"),
+            "nevarnost_visoko": data.get("danger_rating_high"),
+            "nevarnost_nizko": data.get("danger_rating_low"),
+            "oznaka_visoko": data.get("danger_label_high"),
+            "oznaka_nizko": data.get("danger_label_low"),
+            "meja_nadmorske_visine": data.get("elevation_boundary"),
+            "opis_stopnje": self._DANGER_SCALE.get(level, ""),
+            "problemi": [
+                {
+                    "tip": p.get("type_label"),
+                    "lege": p.get("aspects"),
+                    "spodnja_meja": p.get("elevation_lower_bound"),
+                    "zgornja_meja": p.get("elevation_upper_bound"),
+                    "obdobje": p.get("valid_time_period"),
+                }
+                for p in data.get("problems", [])
+            ],
+            "povzetek": data.get("highlights", ""),
+            "komentar_aktivnosti": data.get("activity_comment", ""),
+            "komentar_snezne_odeje": data.get("snowpack_comment", ""),
+            "komentar_vremena": data.get("weather_comment", ""),
+            "tendenca": data.get("tendency", ""),
+            "tendenca_tip": data.get("tendency_type", ""),
+            "cas_objave": data.get("publication_time", ""),
+            "veljavnost_od": data.get("valid_start", ""),
+            "veljavnost_do": data.get("valid_end", ""),
+            "razlaga_lestvice": self._INFO_URL,
+        }
+        return attrs
+
+    @property
+    def available(self) -> bool:
+        if not super().available:
+            return False
+        return self._region_data() is not None
