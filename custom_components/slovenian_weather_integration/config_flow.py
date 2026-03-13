@@ -22,6 +22,7 @@ from .arso_weather.mountain_client import MOUNTAIN_REGIONS
 from .arso_weather.ski_client import SKI_RESORTS
 from .arso_weather.avalanche_client import AVALANCHE_REGIONS
 from .arso_weather.station_map import OBSERVATION_STATIONS
+from .arso_weather.webcam_stations import WEBCAM_STATIONS
 from .const import (
     DOMAIN,
     GLOBAL_MODULES,
@@ -230,9 +231,11 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             return await self._next_conditional_step()
 
-        # Default: include primary location
-        default = [self._location] if self._location else []
-        station_options = {k: k for k in sorted(OBSERVATION_STATIONS.keys())}
+        # Default: include primary location if it has webcams
+        default = []
+        if self._location and self._location in WEBCAM_STATIONS:
+            default = [self._location]
+        station_options = {k: k for k in sorted(WEBCAM_STATIONS.keys())}
         schema = vol.Schema(
             {
                 vol.Required(
@@ -534,9 +537,9 @@ class ArsoOptionsFlow(OptionsFlow):
         # Default to primary location if no webcam locations set
         if not current_locations:
             primary = self.config_entry.data.get(CONF_LOCATION, "")
-            if primary in OBSERVATION_STATIONS:
+            if primary in WEBCAM_STATIONS:
                 current_locations = [primary]
-        station_options = {k: k for k in sorted(OBSERVATION_STATIONS.keys())}
+        station_options = {k: k for k in sorted(WEBCAM_STATIONS.keys())}
         schema = vol.Schema(
             {
                 vol.Required(

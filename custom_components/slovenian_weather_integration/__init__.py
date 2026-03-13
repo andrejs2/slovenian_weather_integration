@@ -27,7 +27,6 @@ from .const import (
     get_enabled_modules,
 )
 from .coordinator import (
-    CONF_WEBCAM_LOCATIONS,
     AgrometeoCoordinator,
     AirQualityCoordinator,
     ArsoDataUpdateCoordinator,
@@ -119,10 +118,7 @@ async def async_setup_entry(
         await warnings_coord.async_config_entry_first_refresh()
 
     webcam_coord = None
-    webcam_locations = entry.options.get(CONF_WEBCAM_LOCATIONS, [])
-    primary_loc = entry.data.get("location", "")
-    has_extra_webcams = any(loc != primary_loc for loc in webcam_locations)
-    if modules.get(MODULE_WEBCAMS) and has_extra_webcams:
+    if modules.get(MODULE_WEBCAMS):
         webcam_coord = WebcamCoordinator(hass, entry)
         await webcam_coord.async_config_entry_first_refresh()
 

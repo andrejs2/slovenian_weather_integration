@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from datetime import datetime
 
 from homeassistant.components.image import ImageEntity
-from homeassistant.const import CONF_LOCATION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -26,11 +24,9 @@ from .const import (
     MODULE_WEBCAMS,
     RADAR_ANIMATION_URL,
     RADAR_CURRENT_URL,
-    WEBCAM_BASE_URL,
     ArsoConfigEntry,
     get_enabled_modules,
 )
-from .coordinator import ArsoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,53 +52,25 @@ async def async_setup_entry(
     modules = get_enabled_modules(entry)
     entities: list[ImageEntity] = []
 
-    # --- Webcam images ---
+    # --- Webcam images (all from WebcamCoordinator) ---
     if modules.get(MODULE_WEBCAMS):
-        coordinator = entry.runtime_data.coordinator
-        location_name = entry.data[CONF_LOCATION]
-
-        # Primary location webcams (from weather coordinator)
-        webcam_device = DeviceInfo(
-            identifiers={(DOMAIN, f"{location_name}_webcams")},
-            name=f"ARSO Spletne kamere {location_name}",
-            manufacturer="ARSO",
-            model="Spletne kamere",
-            entry_type="service",
-        )
-
-        webcams = _get_webcam_data(coordinator)
-        if webcams:
-            for cam in webcams:
-                direction = cam.get("direction", "")
-                if direction in WEBCAM_DIRECTIONS:
-                    entities.append(
-                        ArsoWebcamImage(
-                            coordinator, entry, webcam_device, direction
-                        )
-                    )
-        else:
-            _LOGGER.info(
-                "No webcam data available for %s", location_name
-            )
-
-        # Extra webcam locations (from webcam coordinator)
         webcam_coord = entry.runtime_data.webcam_coordinator
         if webcam_coord and webcam_coord.data:
-            for extra_loc, extra_cams in webcam_coord.data.items():
-                extra_device = DeviceInfo(
-                    identifiers={(DOMAIN, f"{extra_loc}_webcams")},
-                    name=f"ARSO Spletne kamere {extra_loc}",
+            for loc_name, cams in webcam_coord.data.items():
+                device = DeviceInfo(
+                    identifiers={(DOMAIN, f"{loc_name}_webcams")},
+                    name=f"ARSO Spletne kamere {loc_name}",
                     manufacturer="ARSO",
                     model="Spletne kamere",
                     entry_type="service",
                 )
-                for cam in extra_cams:
+                for cam in cams:
                     direction = cam.get("direction", "")
                     if direction in WEBCAM_DIRECTIONS:
                         entities.append(
-                            ArsoExtraWebcamImage(
-                                webcam_coord, entry, extra_device,
-                                extra_loc, direction,
+                            ArsoWebcamImage(
+                                webcam_coord, entry, device,
+                                loc_name, direction,
                             )
                         )
 
@@ -172,30 +140,24 @@ async def async_setup_entry(
         async_add_entities(entities)
 
 
-def _get_webcam_data(coordinator: ArsoDataUpdateCoordinator) -> list[dict]:
-    """Extract webcam array from current observation data."""
-    if not coordinator.data:
-        return []
-    current_list = coordinator.data.get("current", [])
-    if not current_list:
-        return []
-    current = current_list[0]
-    return getattr(current, "webcam", None) or []
-
-
 class ArsoWebcamImage(
-    CoordinatorEntity[ArsoDataUpdateCoordinator], ImageEntity
+    CoordinatorEntity[DataUpdateCoordinator], ImageEntity
 ):
-    """Representation of an ARSO webcam image."""
+    """Representation of an ARSO webcam image.
+
+    All webcams (primary + extra locations) use the WebcamCoordinator
+    which fetches from the dedicated webcam JSON API.
+    """
 
     _attr_has_entity_name = True
     _attr_content_type = "image/jpeg"
 
     def __init__(
         self,
-        coordinator: ArsoDataUpdateCoordinator,
+        coordinator: DataUpdateCoordinator,
         entry: ArsoConfigEntry,
         device_info: DeviceInfo,
+        location_name: str,
         direction: str,
     ) -> None:
         """Initialize the webcam image entity."""
@@ -204,21 +166,22 @@ class ArsoWebcamImage(
         # so ImageEntity.__init__ is never reached via MRO.
         self.access_tokens: deque[str] = deque([], 2)
         self.async_update_token()
+        self._location_name = location_name
         self._direction = direction
-        self._attr_name = f"Kamera {WEBCAM_DIRECTIONS[direction]}"
+        self._attr_name = f"Kamera {location_name} {WEBCAM_DIRECTIONS[direction]}"
         self._attr_unique_id = (
-            f"{DOMAIN}_{entry.entry_id}_cam_{direction}"
+            f"{DOMAIN}_{entry.entry_id}_cam_{location_name}_{direction}"
         )
         self._attr_device_info = device_info
 
     def _get_image_url(self) -> str | None:
-        """Build full webcam image URL from coordinator data."""
-        webcams = _get_webcam_data(self.coordinator)
-        for cam in webcams:
+        """Get the latest webcam image URL from coordinator data."""
+        if not self.coordinator.data:
+            return None
+        cams = self.coordinator.data.get(self._location_name, [])
+        for cam in cams:
             if cam.get("direction") == self._direction:
-                image_path = cam.get("image", "")
-                if image_path:
-                    return f"{WEBCAM_BASE_URL}{image_path}"
+                return cam.get("image_url")
         return None
 
     async def async_image(self) -> bytes | None:
@@ -236,19 +199,6 @@ class ArsoWebcamImage(
             _LOGGER.debug(
                 "Failed to fetch webcam from %s", url, exc_info=True
             )
-        return None
-
-    @property
-    def image_last_updated(self) -> datetime | None:
-        """Return when the image was last updated."""
-        if not self.coordinator.data:
-            return None
-        current_list = self.coordinator.data.get("current", [])
-        if not current_list:
-            return None
-        valid_time = getattr(current_list[0], "valid_time", None)
-        if valid_time:
-            return dt_util.as_local(valid_time)
         return None
 
     @property
@@ -305,71 +255,3 @@ class ArsoRadarImage(ImageEntity):
     def extra_state_attributes(self) -> dict[str, str]:
         """Expose the source URL."""
         return {"image_url": self._url}
-
-
-class ArsoExtraWebcamImage(
-    CoordinatorEntity[DataUpdateCoordinator], ImageEntity
-):
-    """Webcam image from an extra (non-primary) location.
-
-    Uses the WebcamCoordinator which fetches observationAms for
-    additional locations and extracts webcam URLs.
-    """
-
-    _attr_has_entity_name = True
-    _attr_content_type = "image/jpeg"
-
-    def __init__(
-        self,
-        coordinator: DataUpdateCoordinator,
-        entry: ArsoConfigEntry,
-        device_info: DeviceInfo,
-        location_name: str,
-        direction: str,
-    ) -> None:
-        """Initialize the extra webcam image entity."""
-        super().__init__(coordinator)
-        # Manual ImageEntity init (same MRO issue as ArsoWebcamImage)
-        self.access_tokens: deque[str] = deque([], 2)
-        self.async_update_token()
-        self._location_name = location_name
-        self._direction = direction
-        self._attr_name = f"Kamera {location_name} {WEBCAM_DIRECTIONS.get(direction, direction)}"
-        self._attr_unique_id = (
-            f"{DOMAIN}_{entry.entry_id}_cam_{location_name}_{direction}"
-        )
-        self._attr_device_info = device_info
-
-    def _get_image_url(self) -> str | None:
-        """Build webcam image URL from coordinator data."""
-        if not self.coordinator.data:
-            return None
-        cams = self.coordinator.data.get(self._location_name, [])
-        for cam in cams:
-            if cam.get("direction") == self._direction:
-                image_path = cam.get("image", "")
-                if image_path:
-                    return f"{WEBCAM_BASE_URL}{image_path}"
-        return None
-
-    async def async_image(self) -> bytes | None:
-        """Fetch and return the webcam image bytes."""
-        url = self._get_image_url()
-        if not url:
-            return None
-        session = async_get_clientsession(self.hass)
-        try:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    return await resp.read()
-                _LOGGER.warning("Webcam HTTP %s for %s", resp.status, url)
-        except Exception:
-            _LOGGER.debug(
-                "Failed to fetch webcam from %s", url, exc_info=True
-            )
-        return None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str | None]:
-        """Expose the source URL for debugging."""
-        return {"image_url": self._get_image_url()}

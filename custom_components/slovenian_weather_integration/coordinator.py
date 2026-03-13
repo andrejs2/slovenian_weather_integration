@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .arso_weather.agrometeo_client import fetch_agrometeo_data
+from .arso_weather.webcam_client import fetch_webcam_urls
 from .arso_weather.avalanche_client import fetch_avalanche_data
 from .arso_weather.air_quality_client import fetch_air_quality_data
 from .arso_weather.utci_client import fetch_utci_data
@@ -32,7 +33,6 @@ from .arso_weather.mountain_client import (
 from .arso_weather.ski_client import fetch_ski_data
 from .arso_weather.snow_client import fetch_snow_data, find_nearest_snow_station
 from .arso_weather.text_forecast_client import fetch_text_forecast
-from .arso_weather.station_map import OBSERVATION_STATIONS
 from .const import ArsoConfigEntry
 
 # Config option keys (must match config_flow)
@@ -45,11 +45,6 @@ CONF_AVALANCHE_REGIONS = "avalanche_regions"
 
 # Webcam coordinator
 WEBCAM_UPDATE_INTERVAL = timedelta(minutes=15)
-
-PRIMARY_STATION_BASE_URL = (
-    "https://meteo.arso.gov.si/uploads/probase/www/observ/surface/json"
-    "/sl//recent/observationAms_METEO-{location_id}_history.json"
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -331,10 +326,13 @@ def _merge_snow_into_ski(ski_data: dict, snow_data: dict) -> None:
 
 
 class WebcamCoordinator(DataUpdateCoordinator[dict]):
-    """Fetch webcam data for selected locations from observationAms.
+    """Fetch webcam image URLs from the dedicated ARSO webcam JSON API.
+
+    Uses per-direction JSON endpoints that always return fresh data,
+    instead of observationAms which can serve stale cached responses.
 
     Data structure: dict keyed by location name, each value is a list
-    of webcam dicts ``[{"direction": "se", "image": "..."}]``.
+    of dicts ``[{"direction": "se", "image_url": "https://..."}]``.
     """
 
     config_entry: ArsoConfigEntry
@@ -355,46 +353,13 @@ class WebcamCoordinator(DataUpdateCoordinator[dict]):
         locations: list[str] = self.config_entry.options.get(
             CONF_WEBCAM_LOCATIONS, []
         )
-        # Exclude the primary location — it's handled by the weather coordinator
-        primary = self.config_entry.data.get("location", "")
-        extra = [loc for loc in locations if loc != primary]
-
-        result: dict[str, list[dict]] = {}
-        for loc_name in extra:
-            station_id = OBSERVATION_STATIONS.get(loc_name)
-            if not station_id:
-                continue
-            try:
-                async with asyncio.timeout(WEATHER_REQUEST_TIMEOUT):
-                    url = PRIMARY_STATION_BASE_URL.format(
-                        location_id=station_id
-                    )
-                    async with self._session.get(url) as response:
-                        response.raise_for_status()
-                        data = await response.json(content_type=None)
-                webcams = _extract_webcams_from_observation(data)
-                if webcams:
-                    result[loc_name] = webcams
-            except Exception:
-                _LOGGER.debug(
-                    "Failed to fetch webcams for %s", loc_name, exc_info=True
-                )
-
-        return result
-
-
-def _extract_webcams_from_observation(data: dict) -> list[dict]:
-    """Extract webcam list from observationAms JSON."""
-    features = data.get("features", [])
-    if not features:
-        return []
-    days = features[0].get("properties", {}).get("days", [])
-    if not days:
-        return []
-    timeline = days[-1].get("timeline", [])
-    if not timeline:
-        return []
-    return timeline[-1].get("webcam") or []
+        try:
+            async with asyncio.timeout(WEATHER_REQUEST_TIMEOUT):
+                return await fetch_webcam_urls(self._session, locations)
+        except TimeoutError as err:
+            raise UpdateFailed("Timeout fetching webcam data") from err
+        except Exception as err:
+            raise UpdateFailed(f"Error fetching webcam data: {err}") from err
 
 
 class AgrometeoCoordinator(DataUpdateCoordinator[dict]):
