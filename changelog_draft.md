@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] — 2026-03-13
+## [2.0.0-beta.1] — 2026-03-13
 
 ### Added
 - **12 data modules** — weather, webcams, text forecast, bio-weather, mountain forecast, ski resorts, radar, agrometeo, air quality, UTCI, warnings, avalanche
