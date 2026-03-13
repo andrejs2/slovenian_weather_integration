@@ -15,6 +15,5 @@ __pycache__/
 /*.PNG
 /*.JPG
 
-# Claude Code local state
+# Local state
 .claude/
-CLAUDE.md
