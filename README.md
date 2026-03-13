@@ -717,23 +717,40 @@ If you find any bugs or have feature requests, feel free to open an issue or sub
 
 Help other Home Assistant users find this integration by starring this repository. Click the Star button at the top right of the GitHub page.
 
+## My Other Projects
+
+| Project | Description |
+|---------|-------------|
+| **[ARSO Potresi](https://github.com/andrejs2/arso_potresi)** | Home Assistant integration for earthquake data from ARSO -- real-time seismic events in Slovenia and surrounding regions |
+| **[HA Assist -- Slovenian](https://github.com/home-assistant/intents/tree/main/sentences/sl)** | Language leader for the Slovenian voice assistant in Home Assistant -- one of four fully translated languages |
+
+---
+
 ## Support My Work
 
-Do you enjoy using this Home Assistant integration? Then consider supporting my work using one of the following platforms, your donation is greatly appreciated and keeps me motivated:
+Building and maintaining open-source integrations takes a significant amount of personal time and energy. Every module you see here -- from weather observations to avalanche bulletins to earthquake monitoring -- was researched, developed, tested, and documented in my free time, outside of my day job. Keeping up with ARSO API changes, adding new data sources, and ensuring everything works smoothly with each Home Assistant update is an ongoing effort.
+
+If these integrations make your smart home better, please consider supporting my work. Every contribution -- however small -- helps keep this project alive and motivates me to continue improving it:
 
 <a href="https://www.buymeacoffee.com/andrejs2" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
-Vse svoje projekte razvijam v prostem času, saj programiranje ni moj poklic, a mi je to v veselje. Vsaka pozornost, bodisi kavica ali evro, mi omogoča nadaljevanje tega dela in sem zanjo zelo hvaležen.
+[![GitHub Sponsors](https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/andrejs2)
 
-## About me
-DIY enthusiast, passionate lawyer, proud dad, and fervent advocate for open source and privacy. Combining legal expertise with a love for hands-on projects🛠️⚖️
+Vse svoje projekte razvijam v prostem času, saj programiranje ni moj poklic, a mi je to v veselje. Vsaka pozornost -- bodisi kavica ali evro -- mi omogoča nadaljevanje tega dela in sem zanjo zelo hvaležen.
+
+---
+
+## About Me
+
+DIY enthusiast, passionate lawyer, proud dad, and fervent advocate for open source and privacy. Combining legal expertise with a love for hands-on projects.
 
 Kljub temu, da me je poklicna pot prinesla v čisto drug svet, ki nima nobene zveze s programiranjem in razvijanjem integracij, sem predan razvijalec odprtokodnih projektov, ki zagotavljajo visoko stopnjo zasebnosti in omogočajo lokalizacijo v slovenski jezik.
 
 ### Motivation
-This is my first integration for [Home Assistant](https://www.home-assistant.io/), and actually my first personal and solo project on the platform. In addition to this project, I serve as the [language leader](https://developers.home-assistant.io/docs/voice/language-leaders/) for the [Slovenian version of Home Assistant Assist](https://github.com/home-assistant/intents/tree/main/sentences/sl).
 
-When I first started volunteering to translate sentences for the [Assist](https://www.home-assistant.io/voice_control/), I had little knowledge about the project itself, and even less about submitting PRs on GitHub—a complete beginner. The learning curve was steep, but today, [Slovenian](https://home-assistant.github.io/intents/) is one of the four languages with fully translated sentences for the voice assistant.
+This is my first integration for [Home Assistant](https://www.home-assistant.io/), and actually my first personal and solo project on the platform. What started as a simple weather entity has grown into a comprehensive platform with 12 modules, covering everything from real-time weather to avalanche safety and earthquake monitoring.
+
+In addition to this project, I serve as the [language leader](https://developers.home-assistant.io/docs/voice/language-leaders/) for the [Slovenian version of Home Assistant Assist](https://github.com/home-assistant/intents/tree/main/sentences/sl). When I first started volunteering to translate sentences for the [Assist](https://www.home-assistant.io/voice_control/), I had little knowledge about the project itself, and even less about submitting PRs on GitHub -- a complete beginner. The learning curve was steep, but today, [Slovenian](https://home-assistant.github.io/intents/) is one of the four languages with fully translated sentences for the voice assistant.
 
 If you come across any bugs or mistakes in the **voice assistant**, please report them on [GitHub issues](https://github.com/home-assistant/intents/issues). Thank you!
 
