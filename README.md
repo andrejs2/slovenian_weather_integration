@@ -53,7 +53,7 @@ ARSO Weather v2.0.0 provides 12 modules:
 |---|--------|-------------|
 | 1 | **Weather** (core) | Current conditions + hourly/daily/twice-daily forecasts, 35 sensor entities per location |
 | 2 | **Webcams** | Live webcam images from 51 ARSO stations, up to 8 compass directions per location |
-| 3 | **Text Forecast** | National text forecast (Besedilna napoved), outlook, and weather map image |
+| 3 | **Text Forecast** | Full national text forecast, short summary, outlook, and weather map description |
 | 4 | **Bio-Weather** | Bio-weather index, UV index, and pollen information |
 | 5 | **Mountain Forecast** | Mountain weather for 8 regions, temperature and wind at multiple elevations |
 | 6 | **Ski Resorts** | Ski resort conditions, snow depth, temperature, and multi-day forecasts |
@@ -176,13 +176,14 @@ Provides `image` entities with live webcam snapshots from 51 ARSO weather statio
 
 ### 3. Text Forecast (Besedilna napoved)
 
-National text forecast with 3 sensor entities:
+National text forecast with 4 sensor entities:
 
 | Sensor | Description |
 |--------|-------------|
-| Besedilna napoved | Current weather situation and short-term forecast |
+| Besedilna napoved | Full forecast for Slovenia (today + tomorrow), matching the ARSO audio forecast |
+| Povzetek | Short forecast summary |
 | Obeti | Weather outlook for the coming days |
-| Vremenska slika | Weather map image URL |
+| Vremenska slika | Weather map description |
 
 Sensor state is truncated to 255 characters (HA limit). The `full_text` attribute always contains the complete text, suitable for TTS and automations.
 

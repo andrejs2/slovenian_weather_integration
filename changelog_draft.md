@@ -1,5 +1,50 @@
 # Changelog
 
+## [2.0.0] — 2026-03-18
+
+### Added
+- **12 data modules** — weather, webcams, text forecast, bio-weather, mountain forecast, ski resorts, radar, agrometeo, air quality, UTCI, warnings, avalanche
+- **Modular config flow** — multi-step UI to enable/disable modules and select stations per module
+- **247 locations** — all ARSO locations, not just primary weather stations
+- **Real-time observation** — uses official API "observation" key for accurate current conditions
+- **EAQI sensor** — European Air Quality Index (1–6) with per-pollutant breakdown
+- **UTCI module** — Universal Thermal Climate Index for thermal comfort
+- **Weather warnings** — binary sensor + detailed sensor per region with severity levels
+- **Avalanche bulletin** — EAWS/CAAMLv6 for 29 alpine regions (SI + AT border)
+- **Audio forecast** — MP3 URL of ARSO prognostik voice forecast (`audio_url` attribute)
+- **Agrometeo module** — soil temperature, ETP, water balance for 36 stations
+- **Mountain forecast** — 8 regions with altitude-based temperature, wind, humidity
+- **Ski resort conditions** — snow depth, lifts, slopes, webcams
+- **Radar images** — precipitation and cloud radar as image entities
+- **Webcam images** — live camera feeds from 51 weather stations via dedicated JSON API
+- **Povzetek (summary) sensor** — short text forecast summary, separate from full forecast
+- **Data source attribution** — "Vir podatkov: Agencija RS za okolje"
+
+### Changed
+- **Complete architectural rewrite** — separate `DataUpdateCoordinator` per module with independent update intervals
+- **Runtime data pattern** — uses `entry.runtime_data` (HA 2024.4.0+) instead of `hass.data`
+- **Weather condition detection** — icons checked before text for reliability; condition fields protected from stale observationAms data
+- **Minimum Home Assistant version** — bumped to 2024.4.0
+- **Text forecast parser** — correctly groups continuation paragraphs and parses all ARSO sections
+
+### Fixed
+- **Weather condition showed "cloudy" instead of "rainy"** — uses real-time observation instead of forecast proxy (#12)
+- **Text forecast showed only summary** — parser now returns full forecast text (#24)
+- **Webcam images showing stale/404 data** — rewrote to use dedicated ARSO webcam JSON API (#20)
+- **Precipitation sensors showed "unavailable"** — empty string converts to 0.0 mm
+- **observationAms read oldest entry** — now reads most recent instead of oldest
+- **Air quality station codes** — updated after ARSO changed them (E21–E34 → E403–E804)
+
+### Backwards compatibility
+- All existing entity unique IDs preserved
+- Weather entity ID format unchanged
+- Sensor entity ID format unchanged
+- Config flow VERSION = 1 (no migration needed)
+
+---
+
+### Beta changelog
+
 ## [2.0.0-beta.3] — 2026-03-18
 
 ### Fixed

@@ -1,8 +1,4 @@
-## What's new in v2.0.0-beta.3
-
-> **This is a beta release.** Please report any issues on [GitHub Issues](https://github.com/andrejs2/slovenian_weather_integration/issues). Your feedback helps make the stable v2.0.0 release solid.
->
-> To install via HACS, enable "Show beta versions" in the integration's HACS settings.
+## What's new in v2.0.0
 
 Complete rewrite of the integration — from a single weather entity to a full modular platform with 12 independent data modules.
 
@@ -12,7 +8,7 @@ Complete rewrite of the integration — from a single weather entity to a full m
 |--------|-------------|
 | **Weather** | Weather entity with current conditions, hourly/daily/twice-daily forecasts |
 | **Webcams** | Live webcam images from 51 ARSO weather stations |
-| **Text forecast** | Regional text forecast (today, tomorrow, outlook) + audio forecast MP3 |
+| **Text forecast** | Full regional text forecast + short summary + outlook + audio MP3 |
 | **Bio-weather** | Biometeorology forecast (UV index, pollen, health effects) |
 | **Mountain forecast** | Mountain weather by region with altitude-based data |
 | **Ski resorts** | Ski resort conditions (snow depth, lifts, slopes, webcams) |
@@ -32,21 +28,10 @@ Complete rewrite of the integration — from a single weather entity to a full m
 - **EAQI sensor** — European Air Quality Index with per-pollutant breakdown (PM2.5, PM10, O3, NO2, SO2)
 - **Avalanche bulletin** — EAWS/CAAMLv6 data for 29 alpine regions across Slovenia (11), Carinthia/Koroška (12), and Styria/Štajerska (6), with elevation-based danger ratings, avalanche problems, and detailed text forecasts
 - **Audio forecast** — ARSO prognostik voice forecast MP3 URL on text forecast sensors (`audio_url` attribute), playable via `media_player.play_media`
-- **Webcam module** — dedicated ARSO webcam JSON API with 51 stations and automatic direction detection (no more stale images)
+- **Webcam module** — dedicated ARSO webcam JSON API with 51 stations and automatic direction detection
+- **Text forecast** — full forecast text (today + tomorrow) with separate summary sensor, matching the official ARSO audio forecast
 - **Precipitation fix** — no-rain correctly shows 0 mm instead of "unavailable"
 - **Data source attribution** — "Vir podatkov: Agencija RS za okolje"
-
-### Changes in beta.3
-
-- **Text forecast fix** — the "Besedilna napoved" sensor now shows the full forecast (today + tomorrow) instead of just the short summary. The parser was incorrectly matching the "povzetek" section as the main forecast.
-- **New Povzetek sensor** — separate sensor for the short forecast summary
-- **Improved text forecast parser** — correctly groups continuation paragraphs and parses all ARSO text forecast sections
-
-### Changes in beta.2
-
-- **Webcam images fix** — rewrote webcam module to use dedicated ARSO webcam JSON API instead of `observationAms`, which could serve cached/stale image URLs causing 404 errors
-- **Webcam station selection** — config flow now shows only 51 stations with webcams (instead of all 107 primary stations)
-- **Simplified webcam architecture** — single image entity class for all webcam locations
 
 ### Upgrading from v1.x
 
@@ -55,11 +40,19 @@ Complete rewrite of the integration — from a single weather entity to a full m
 - After updating, go to **Settings > Devices & Services > ARSO Weather > Configure** to enable new modules
 - The core Weather module continues to work exactly as before
 
-### Known limitations (beta)
+### Known limitations
 
 - Avalanche bulletins are seasonal — outside winter season the sensor may show "Ni podatkov"
 - AT-02 (Koroška) avalanche regions use German names (no Slovenian translation available from EAWS)
 - Audio forecast URL is static — it always points to the latest recording, updated daily by ARSO
+
+### Issues resolved
+
+- **Webcam images showing stale/404 data** — rewrote to use dedicated ARSO webcam JSON API (#20)
+- **Text forecast showed only summary** — parser now returns full forecast text (#24)
+- **Weather condition showed "cloudy" instead of "rainy"** — uses real-time observation instead of forecast proxy (#12)
+- **Precipitation "unavailable"** — empty string now converts to 0.0 mm
+- **Compatibility with HA 2026.3+** (#21)
 
 ### Data sources
 
@@ -72,4 +65,4 @@ All data from [ARSO](https://www.arso.gov.si/) (Agencija Republike Slovenije za 
 
 ---
 
-**Full Changelog**: https://github.com/andrejs2/slovenian_weather_integration/compare/v1.3.1...v2.0.0-beta.3
+**Full Changelog**: https://github.com/andrejs2/slovenian_weather_integration/compare/v1.3.1...v2.0.0
