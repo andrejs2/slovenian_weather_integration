@@ -371,6 +371,11 @@ TEXT_FORECAST_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:text-long",
     ),
     SensorEntityDescription(
+        key="summary",
+        name="Povzetek",
+        icon="mdi:text-short",
+    ),
+    SensorEntityDescription(
         key="outlook",
         name="Obeti",
         icon="mdi:crystal-ball",
