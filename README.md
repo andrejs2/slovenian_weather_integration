@@ -659,6 +659,10 @@ automation:
 
 ### Play ARSO Audio Forecast
 
+The text forecast sensors include an `audio_url` attribute with a direct link to the ARSO prognostik voice recording (MP3). This works with most media players in HA -- Google Home, Sonos, etc. (Alexa does not support external MP3 URLs).
+
+**Morning automation:**
+
 ```yaml
 automation:
   - alias: "Predvajaj jutranjo napoved ARSO"
@@ -668,11 +672,94 @@ automation:
     action:
       - service: media_player.play_media
         target:
-          entity_id: media_player.kitchen_speaker
+          entity_id: media_player.dnevna_soba
         data:
-          media_content_id: "{{ state_attr('sensor.arso_besedilna_napoved_besedilna_napoved', 'audio_url') }}"
+          media_content_id: >
+            {{ state_attr('sensor.arso_besedilna_napoved_besedilna_napoved', 'audio_url') }}
           media_content_type: music
 ```
+
+**Dashboard button (script):**
+
+```yaml
+script:
+  predvajaj_napoved:
+    alias: "Predvajaj vremensko napoved"
+    sequence:
+      - service: media_player.play_media
+        target:
+          entity_id: media_player.dnevna_soba
+        data:
+          media_content_id: >
+            {{ state_attr('sensor.arso_besedilna_napoved_besedilna_napoved', 'audio_url') }}
+          media_content_type: music
+```
+
+```yaml
+type: button
+name: "Vremenska napoved"
+icon: mdi:weather-cloudy
+tap_action:
+  action: perform-action
+  perform_action: script.predvajaj_napoved
+```
+
+### Voice Assistant Integration
+
+You can trigger the audio forecast via Home Assistant Voice Assistant using a custom intent and custom sentences.
+
+**1. Intent script in `configuration.yaml`:**
+
+```yaml
+intent_script:
+  PlayWeatherForecast:
+    speech:
+      text: "Predvajam vremensko napoved."
+    action:
+      - service: media_player.play_media
+        target:
+          entity_id: media_player.dnevna_soba
+        data:
+          media_content_id: >
+            {{ state_attr('sensor.arso_besedilna_napoved_besedilna_napoved', 'audio_url') }}
+          media_content_type: music
+```
+
+**2. Custom sentences in `custom_sentences/sl/weather_forecast.yaml`:**
+
+```yaml
+language: sl
+intents:
+  PlayWeatherForecast:
+    data:
+      - sentences:
+          - "predvajaj vremensko napoved"
+          - "predvajaj [ARSO] napoved"
+          - "povej vremensko napoved"
+          - "kakšno bo vreme"
+          - "predvajaj vreme"
+```
+
+**How it works:** Say "Predvajaj vremensko napoved" to your Voice Assistant. Assist recognizes the sentence, triggers the `PlayWeatherForecast` intent, responds "Predvajam vremensko napoved", and plays the ARSO prognostik MP3 on your media player.
+
+**Dynamic media player** -- to play on the same speaker where Voice Assistant is listening:
+
+```yaml
+intent_script:
+  PlayWeatherForecast:
+    speech:
+      text: "Predvajam vremensko napoved."
+    action:
+      - service: media_player.play_media
+        target:
+          area_id: "{{ area_id }}"
+        data:
+          media_content_id: >
+            {{ state_attr('sensor.arso_besedilna_napoved_besedilna_napoved', 'audio_url') }}
+          media_content_type: music
+```
+
+**Note:** The `custom_sentences/sl/` directory must be in the Home Assistant config directory (next to `configuration.yaml`). Slovenian works as an Assist language if you have a Slovenian pipeline configured.
 
 ---
 
