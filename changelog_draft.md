@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0-beta.3] — 2026-03-18
+
+### Fixed
+- **Text forecast showed summary instead of full forecast** — the "NAPOVED ZA SLOVENIJO - povzetek" section title matched the "NAPOVED ZA SLOVENIJO" check, causing the summary to overwrite the full forecast text
+
+### Added
+- **Povzetek (summary) sensor** — new text forecast sensor with the short forecast summary, separate from the full forecast
+
+### Changed
+- **Text forecast parser** — now correctly groups continuation paragraphs (today + tomorrow) and parses all named sections (Napoved za Slovenijo, Sosednje pokrajine, Obeti, Opozorilo, Vremenska slika, Povzetek)
+
 ## [2.0.0-beta.2] — 2026-03-13
 
 ### Fixed

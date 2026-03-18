@@ -1,4 +1,4 @@
-## What's new in v2.0.0-beta.2
+## What's new in v2.0.0-beta.3
 
 > **This is a beta release.** Please report any issues on [GitHub Issues](https://github.com/andrejs2/slovenian_weather_integration/issues). Your feedback helps make the stable v2.0.0 release solid.
 >
@@ -36,6 +36,12 @@ Complete rewrite of the integration — from a single weather entity to a full m
 - **Precipitation fix** — no-rain correctly shows 0 mm instead of "unavailable"
 - **Data source attribution** — "Vir podatkov: Agencija RS za okolje"
 
+### Changes in beta.3
+
+- **Text forecast fix** — the "Besedilna napoved" sensor now shows the full forecast (today + tomorrow) instead of just the short summary. The parser was incorrectly matching the "povzetek" section as the main forecast.
+- **New Povzetek sensor** — separate sensor for the short forecast summary
+- **Improved text forecast parser** — correctly groups continuation paragraphs and parses all ARSO text forecast sections
+
 ### Changes in beta.2
 
 - **Webcam images fix** — rewrote webcam module to use dedicated ARSO webcam JSON API instead of `observationAms`, which could serve cached/stale image URLs causing 404 errors
@@ -66,4 +72,4 @@ All data from [ARSO](https://www.arso.gov.si/) (Agencija Republike Slovenije za 
 
 ---
 
-**Full Changelog**: https://github.com/andrejs2/slovenian_weather_integration/compare/v1.3.1...v2.0.0-beta.2
+**Full Changelog**: https://github.com/andrejs2/slovenian_weather_integration/compare/v1.3.1...v2.0.0-beta.3
