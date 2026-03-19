@@ -124,6 +124,12 @@ class BaseTimelineEntry(BaseModel):
             "plohe",
         ],  # clear, partly cloudy, possibility of thunderstorms, showers
     )
+    pressure_tendency: Optional[str] = Field(
+        default=None,
+        alias="pa_shortText",
+        description="Textual description of the pressure tendency.",
+        examples=["", "narašča", "pada", "stalno"],  # "", rising, falling, steady
+    )
     cloud_base_text: Optional[str] = Field(
         default=None,
         alias="cloudBase_shortText",
@@ -186,6 +192,11 @@ class BaseTimelineEntry(BaseModel):
                     return condition
 
         return "unknown"
+
+    @property
+    def weather_phenomenon(self) -> Optional[str]:
+        """Combined cloud cover and weather phenomenon text (sensor key alias)."""
+        return self.combined_cloud_weather_text
 
 
 # ==============================================================================

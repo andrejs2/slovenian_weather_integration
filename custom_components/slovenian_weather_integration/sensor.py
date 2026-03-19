@@ -116,6 +116,16 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:weather-windy-variant",
     ),
+    SensorEntityDescription(
+        key="pressure_tendency",
+        name="Tendenca tlaka",
+        icon="mdi:trending-up",
+    ),
+    SensorEntityDescription(
+        key="weather_phenomenon",
+        name="Vremenski pojav",
+        icon="mdi:weather-partly-rainy",
+    ),
     # --- Fields specific to ObservationDetails ---
     SensorEntityDescription(
         key="dew_point",
