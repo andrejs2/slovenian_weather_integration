@@ -499,17 +499,17 @@ AQ_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="pm10",
         name="PM10",
+        device_class=SensorDeviceClass.PM10,
         native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:blur",
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
         key="pm2.5",
         name="PM2.5",
+        device_class=SensorDeviceClass.PM25,
         native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:blur",
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
