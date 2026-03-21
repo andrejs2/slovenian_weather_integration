@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 import aiohttp
+from pydantic import ValidationError
 
 from .models import (
     MODEL_MAPPING,
@@ -107,7 +108,7 @@ class ArsoWeather:
                 observation = merge_observation_data(
                     observation_proxy, detailed
                 )
-            except (ArsoApiError, ValueError) as err:
+            except (ArsoApiError, ValidationError, ValueError) as err:
                 _LOGGER.warning(
                     "Failed to get primary station data for %s: %s",
                     self.location_name,
@@ -184,8 +185,8 @@ class ArsoWeather:
         """Parse primary weather station data (observationAms).
 
         Returns the most recent timeline entry as a raw dict.
-        The history endpoint stores entries chronologically — the last
-        entry in the last day is the latest observation.
+        The history endpoint stores entries in REVERSE chronological
+        order — days[0] is the newest day, timeline[0] is the newest entry.
         """
         features = data.get("features")
         if not features or not isinstance(features, list):
@@ -195,8 +196,8 @@ class ArsoWeather:
         try:
             feature = features[0]
             days = feature["properties"]["days"]
-            timeline = days[-1]["timeline"]
-            return timeline[-1]
+            timeline = days[0]["timeline"]
+            return timeline[0]
         except (KeyError, IndexError, TypeError) as err:
             raise ArsoApiError(
                 f"Invalid station data structure: {err}"
