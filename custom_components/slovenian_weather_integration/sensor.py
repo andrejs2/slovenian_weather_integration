@@ -726,8 +726,10 @@ async def async_setup_entry(
                 )
                 # Individual value sensors (disabled by default)
                 current = agro_coord.data[station_name].get("current", {})
+                forecast = agro_coord.data[station_name].get("forecast", [])
+                first_fc = forecast[0] if forecast else {}
                 for desc in AGRO_SENSOR_DESCRIPTIONS:
-                    if current.get(desc.key) is not None:
+                    if current.get(desc.key) is not None or first_fc.get(desc.key) is not None:
                         entities.append(
                             ArsoAgrometeoValueSensor(
                                 agro_coord, agro_device_info,
@@ -1466,17 +1468,20 @@ class ArsoAgrometeoOverviewSensor(
             "posodobljeno": data.get("updated"),
         }
         # Build a single chronological timeline: history → today → forecast
+        from datetime import date as date_type
+
+        today_str = date_type.today().isoformat()
         dnevi: list[dict[str, Any]] = []
         for day in data.get("history", []):
             entry = _format_agro_day(day)
             entry["tip"] = "meritev"
             dnevi.append(entry)
-        today = _format_agro_day(current)
-        today["tip"] = "danes"
-        dnevi.append(today)
+        current_entry = _format_agro_day(current)
+        current_entry["tip"] = "meritev"
+        dnevi.append(current_entry)
         for day in data.get("forecast", [])[:10]:
             entry = _format_agro_day(day)
-            entry["tip"] = "napoved"
+            entry["tip"] = "danes" if entry.get("datum") == today_str else "napoved"
             dnevi.append(entry)
         # Sort by date ascending
         dnevi.sort(key=lambda d: d.get("datum", ""))
@@ -1529,7 +1534,14 @@ class ArsoAgrometeoValueSensor(
         data = self._station_data()
         if not data:
             return None
-        return data.get("current", {}).get(self.entity_description.key)
+        key = self.entity_description.key
+        value = data.get("current", {}).get(key)
+        if value is None:
+            # Fall back to first forecast day (e.g. ETP, wBal are forecast-only)
+            forecast = data.get("forecast", [])
+            if forecast:
+                value = forecast[0].get(key)
+        return value
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -1537,14 +1549,21 @@ class ArsoAgrometeoValueSensor(
         if not data:
             return None
         current = data.get("current", {})
+        key = self.entity_description.key
         attrs: dict[str, Any] = {"date": current.get("date")}
+        # If value comes from forecast, show that date instead
+        if current.get(key) is None:
+            forecast = data.get("forecast", [])
+            if forecast and forecast[0].get(key) is not None:
+                attrs["date"] = forecast[0].get("date")
+                attrs["vir"] = "napoved"
         # Include history for this value
         history = data.get("history", [])
         if history:
             attrs["history"] = [
-                {"date": d.get("date"), self.entity_description.key: d.get(self.entity_description.key)}
+                {"date": d.get("date"), key: d.get(key)}
                 for d in history
-                if d.get(self.entity_description.key) is not None
+                if d.get(key) is not None
             ]
         return attrs
 
