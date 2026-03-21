@@ -1421,7 +1421,7 @@ class ArsoAgrometeoOverviewSensor(
     ) -> None:
         super().__init__(coordinator)
         self._station_name = station_name
-        self._attr_name = f"Agrometeo {station_name}"
+        self._attr_name = station_name
         self._attr_device_info = device_info
         self._attr_unique_id = (
             f"{DOMAIN}_{config_entry_id}_agro_"
