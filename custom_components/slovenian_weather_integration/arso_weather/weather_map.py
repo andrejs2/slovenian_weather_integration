@@ -1,7 +1,11 @@
 CLOUD_CONDITION_MAP = {
     # Common weather conditions from 'wwsyn_shortText' and 'clouds_shortText'
+    # Full 8-level scale: meteo.arso.gov.si/uploads/meteo/help/sl/xml_service.html
     "jasno": "sunny",
+    "pretežno jasno": "sunny",
+    "rahlo oblačno": "partlycloudy",
     "delno oblačno": "partlycloudy",
+    "zmerno oblačno": "partlycloudy",
     "pretežno oblačno": "cloudy",
     "oblačno": "cloudy",
     "megla": "fog",
@@ -134,6 +138,13 @@ CLOUD_CONDITION_MAP = {
     "blizzard": "snowy",
     "prevcloudy_day": "cloudy",
     "prevcloudy_night": "cloudy",
+    # observationAms 6-level icons (no _day/_night suffix, handled via _day fallback)
+    "mostclear_day": "sunny",
+    "mostclear_night": "clear-night",
+    "slightcloudy_day": "partlycloudy",
+    "slightcloudy_night": "partlycloudy",
+    "modcloudy_day": "cloudy",
+    "modcloudy_night": "cloudy",
 }
 
 

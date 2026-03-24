@@ -51,7 +51,7 @@ ARSO Weather v2.0.1 provides 12 modules:
 
 | # | Module | Description |
 |---|--------|-------------|
-| 1 | **Weather** (core) | Current conditions + hourly/daily/twice-daily forecasts, 37 sensor entities per location |
+| 1 | **Weather** (core) | Current conditions + hourly/daily/twice-daily forecasts, 38 sensor entities per location |
 | 2 | **Webcams** | Live webcam images from 51 ARSO stations, up to 8 compass directions per location |
 | 3 | **Text Forecast** | Full national text forecast, short summary, outlook, and weather map description |
 | 4 | **Bio-Weather** | Bio-weather index, UV index, and pollen information |
@@ -111,11 +111,12 @@ You can reconfigure modules at any time via **Configure** on the integration ent
 
 ### 1. Weather (Core Module)
 
-Always enabled. Provides a `weather` entity and up to 37 sensor entities per location.
+Always enabled. Provides a `weather` entity and up to 38 sensor entities per location.
 
 **Weather entity properties:**
 - Temperature, humidity, pressure
 - Wind speed, wind gust speed, wind bearing
+- Cloud coverage (derived from ARSO cloud text/icon)
 - Dew point, visibility
 - UV index (from Bio-Weather module, if enabled)
 - Ozone level (from Air Quality module, if enabled)
@@ -126,7 +127,7 @@ Always enabled. Provides a `weather` entity and up to 37 sensor entities per loc
 - **Daily** -- up to 10 days, with min/max temperature and 24h precipitation
 - **Twice-daily** -- morning and evening aggregation
 
-**Sensor entities (up to 37 per location):**
+**Sensor entities (up to 38 per location):**
 
 | Sensor Name (SI) | Key | Unit | Availability |
 |------------------|-----|------|-------------|
@@ -138,6 +139,7 @@ Always enabled. Provides a `weather` entity and up to 37 sensor entities per loc
 | Sunki vetra | `max_wind_gust_kmh` | km/h | All stations |
 | Tendenca tlaka | `pressure_tendency` | -- | All stations |
 | Vremenski pojav | `weather_phenomenon` | -- | All stations |
+| Oblačnost | `cloud_coverage` | % | All stations |
 | Rosišče | `dew_point` | C | Primary only |
 | Smer vetra (stopinje) | `wind_direction_degrees` | deg | Primary only |
 | Smer sunkov (stopinje) | `wind_direction_max_gust_degrees` | deg | Primary only |
@@ -170,7 +172,7 @@ Always enabled. Provides a `weather` entity and up to 37 sensor entities per loc
 
 **Note on entity IDs:** HA auto-generates entity IDs from the device name and sensor name. For example, with device "ARSO Weather Ljubljana" and sensor "Temperatura", the entity ID becomes `sensor.arso_weather_ljubljana_temperatura`. Sensor names are in Slovenian, so entity IDs contain Slovenian words.
 
-Sensors only appear when the station provides data for the field. Primary stations provide all ~37 sensors; secondary stations provide ~8.
+Sensors only appear when the station provides data for the field. Primary stations provide all ~38 sensors; secondary stations provide ~8.
 
 ### 2. Webcams
 
@@ -449,7 +451,7 @@ Weather forecasts are accessed via the `weather.get_forecasts` action. See [Home
 
 There are **two types** of weather stations:
 
-- **Primary stations (~107)** -- listed in the [ARSO observation map](https://meteo.arso.gov.si/uploads/meteo/app/amsview/?params=t,rh,ffavg_val,ffmax_val,msl,tp_acc,snow,tp_12h_acc,tw,gSunRadavg,diffSunRadavg,vis_val&lon=15.11848012616623&lat=45.97045629929457&zoom=8.126735333141523&sliderHours=6). These provide full observation data with up to 37 sensor entities (ground temperatures, solar radiation, visibility, dew point, etc.).
+- **Primary stations (~107)** -- listed in the [ARSO observation map](https://meteo.arso.gov.si/uploads/meteo/app/amsview/?params=t,rh,ffavg_val,ffmax_val,msl,tp_acc,snow,tp_12h_acc,tw,gSunRadavg,diffSunRadavg,vis_val&lon=15.11848012616623&lat=45.97045629929457&zoom=8.126735333141523&sliderHours=6). These provide full observation data with up to 38 sensor entities (ground temperatures, solar radiation, visibility, dew point, etc.).
 
 - **Secondary stations (~140)** -- provide forecast-proxy data only (temperature, wind, pressure, humidity, conditions). Detailed sensors will show as unavailable.
 

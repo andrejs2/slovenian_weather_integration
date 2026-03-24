@@ -68,7 +68,7 @@ from .arso_weather.models import ObservationDetails
 
 _LOGGER = logging.getLogger(__name__)
 
-# All 35 sensor description keys are FROZEN for backwards compatibility.
+# All 36 sensor description keys are FROZEN for backwards compatibility.
 # See docs/backwards_compatibility.md — never change existing key values.
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # --- Fields from BaseTimelineEntry ---
@@ -370,6 +370,15 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
         icon="mdi:thermometer-lines",
+    ),
+    # --- Cloud coverage (derived from text/icon, available for all stations) ---
+    SensorEntityDescription(
+        key="cloud_coverage",
+        name="Oblačnost",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:weather-cloudy",
+        suggested_display_precision=1,
     ),
 )
 

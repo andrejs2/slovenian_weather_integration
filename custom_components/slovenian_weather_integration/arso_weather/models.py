@@ -193,6 +193,59 @@ class BaseTimelineEntry(BaseModel):
 
         return "unknown"
 
+    @computed_field
+    @property
+    def cloud_coverage(self) -> Optional[float]:
+        """Cloud coverage percentage derived from ARSO nn_shortText / nn_icon.
+
+        ARSO documents 8 cloud levels (oktas 0-8) mapped to text/icon values.
+        See: meteo.arso.gov.si/uploads/meteo/help/sl/xml_service.html
+        The official API (vreme.arso.gov.si) returns only 4 levels; the
+        observationAms endpoint returns up to 6-7 levels via icon prefixes.
+        """
+        # nn_shortText → percentage (all 8 documented levels)
+        _CLOUD_TEXT_MAP = {
+            "jasno": 0,
+            "pretežno jasno": 12.5,
+            "pretezno jasno": 12.5,
+            "rahlo oblačno": 25,
+            "rahlo oblacno": 25,
+            "delno oblačno": 50,
+            "delno oblacno": 50,
+            "zmerno oblačno": 62.5,
+            "zmerno oblacno": 62.5,
+            "pretežno oblačno": 87.5,
+            "pretezno oblacno": 87.5,
+            "oblačno": 100,
+            "oblacno": 100,
+            "megla": 100,
+        }
+        if self.cloud_cover_text:
+            pct = _CLOUD_TEXT_MAP.get(self.cloud_cover_text.lower())
+            if pct is not None:
+                return pct
+        # Fallback: derive from nn_icon prefix (observationAms has more levels)
+        icon = self.combined_cloud_weather_icon
+        if icon:
+            lower = icon.lower()
+            if lower.startswith("clear"):
+                return 0
+            if lower.startswith("mostclear"):
+                return 12.5
+            if lower.startswith("slightcloudy"):
+                return 25
+            if lower.startswith("partcloudy"):
+                return 50
+            if lower.startswith("modcloudy"):
+                return 62.5
+            if lower.startswith("prevcloudy"):
+                return 87.5
+            if lower.startswith("overcast"):
+                return 100
+            if lower.startswith("fg"):
+                return 100
+        return None
+
     @property
     def weather_phenomenon(self) -> Optional[str]:
         """Combined cloud cover and weather phenomenon text (sensor key alias)."""

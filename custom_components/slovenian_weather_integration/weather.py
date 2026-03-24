@@ -219,6 +219,13 @@ class ArsoWeatherEntity(
         return _extract_uv_number(uv_text)
 
     @property
+    def native_cloud_coverage(self) -> float | None:
+        """Return cloud coverage in %."""
+        if self._current_data:
+            return self._current_data.cloud_coverage
+        return None
+
+    @property
     def condition(self) -> str | None:
         if self._current_data:
             condition = self._current_data.home_assistant_weather_condition

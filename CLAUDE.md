@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **Home Assistant custom integration** for Slovenian weather data from ARSO (Agencija Republike Slovenije za okolje). It is distributed via HACS (Home Assistant Community Store). Domain: `slovenian_weather_integration`, display name: "ARSO Weather".
 
-Current version: **2.0.3** (see `manifest.json`). Requires Home Assistant 2024.4.0+ (uses `entry.runtime_data`).
+Current version: **2.0.4** (see `manifest.json`). Requires Home Assistant 2024.4.0+ (uses `entry.runtime_data`).
 
 ## Validation & CI
 
@@ -86,7 +86,7 @@ Global modules (`text_forecast`, `bio_weather`, `mountain`, `ski_resorts`, `rada
 15. **`weather.py` (`ArsoWeatherEntity`)** — HA `WeatherEntity` providing current conditions + hourly/daily/twice-daily forecasts. Exposes: temperature, humidity, pressure, wind speed/gust/bearing, dew point, visibility, UV index (from bio-weather), ozone (from air quality). Uses `astral` library for day/night detection.
 
 16. **`sensor.py`** — Creates sensor entities per module:
-    - 37 `ArsoWeatherSensor` per location (FROZEN keys)
+    - 38 `ArsoWeatherSensor` per location (FROZEN keys)
     - 4 `ArsoTextSensor` for text forecast (forecast, summary, outlook, weather_image)
     - 3 `ArsoTextSensor` for bio-weather
     - 2 `ArsoTextSensor` + N elevation sensors for mountain
@@ -147,7 +147,7 @@ See `docs/backwards_compatibility.md` for full details. These identifiers are FR
 - Weather entity unique_id: `"{entry.entry_id}_weather"` (NO domain prefix)
 - Sensor entity unique_id: `"slovenian_weather_integration_{entry.entry_id}_{description.key}"` (WITH domain prefix)
 - Device identifier: `("slovenian_weather_integration", "{location_name}")`
-- All 37 sensor description `key` values
+- All 38 sensor description `key` values
 - Config flow VERSION = 1
 
 ## ARSO API Domains
