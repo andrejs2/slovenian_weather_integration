@@ -10,11 +10,13 @@ __pycache__/
 .vscode/
 .idea/
 
-# Logs and screenshots (root level only)
+# Logs, screenshots, and reference docs (root level only)
 /*.log
 /*.png
 /*.PNG
 /*.JPG
+/*.pdf
 
 # Local state
 .claude/
+SESSION_LOG.md
