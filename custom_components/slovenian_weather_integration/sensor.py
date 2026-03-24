@@ -627,6 +627,9 @@ async def async_setup_entry(
         )
 
     # --- Forecast-based sensors (read from forecast1h/3h, available for all stations) ---
+    # Always create these sensors — forecast fields are always present in the API
+    # (tp_acc/sn_acc return "0.0" when dry, cloudBase_shortText may be "" initially
+    # but becomes available later). The sensor's `available` property handles None.
     forecast_data = None
     if coordinator.data:
         for fkey in ("forecast1h", "forecast3h"):
@@ -635,15 +638,11 @@ async def async_setup_entry(
                 forecast_data = flist[0]
                 break
 
-    for description in FORECAST_SENSOR_DESCRIPTIONS:
-        if forecast_data is not None:
-            value = getattr(forecast_data, description.key, None)
-            if value is None:
-                _LOGGER.debug("Skipping forecast sensor %s (no initial data)", description.key)
-                continue
-        entities.append(
-            ArsoForecastSensor(coordinator, description, device_info, entry.entry_id)
-        )
+    if forecast_data is not None:
+        for description in FORECAST_SENSOR_DESCRIPTIONS:
+            entities.append(
+                ArsoForecastSensor(coordinator, description, device_info, entry.entry_id)
+            )
 
     # --- Text forecast sensors ---
     if modules.get(MODULE_TEXT_FORECAST):
