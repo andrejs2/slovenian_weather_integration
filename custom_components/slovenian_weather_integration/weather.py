@@ -284,7 +284,11 @@ class ArsoWeatherEntity(
                 ATTR_FORECAST_WIND_BEARING: item.wind_direction_text,
                 ATTR_FORECAST_HUMIDITY: item.relative_humidity_percent,
                 ATTR_FORECAST_PRESSURE: item.mean_sea_level_pressure_hpa,
+                "native_wind_gust_speed": item.max_wind_gust_kmh,
+                "cloud_coverage": item.cloud_coverage,
             }
+            if item.accumulated_snow_mm is not None and item.accumulated_snow_mm > 0:
+                entry["snow_precipitation"] = item.accumulated_snow_mm
             ha_forecast.append(
                 {k: v for k, v in entry.items() if v is not None}
             )
@@ -314,6 +318,8 @@ class ArsoWeatherEntity(
                 ATTR_FORECAST_HUMIDITY: item.relative_humidity_percent,
                 ATTR_FORECAST_PRESSURE: item.mean_sea_level_pressure_hpa,
                 ATTR_FORECAST_TEMP_LOW: item.min_temperature_forecast,
+                "native_wind_gust_speed": item.max_wind_gust_kmh,
+                "cloud_coverage": item.cloud_coverage,
             }
             ha_forecast.append(
                 {k: v for k, v in entry.items() if v is not None}
@@ -378,6 +384,11 @@ class ArsoWeatherEntity(
                 for f in half_day
                 if f.accumulated_snow_mm is not None
             ]
+            gusts = [
+                f.max_wind_gust_kmh
+                for f in half_day
+                if f.max_wind_gust_kmh is not None
+            ]
 
             entry: Forecast = {
                 ATTR_FORECAST_IS_DAYTIME: hour == 9,
@@ -397,6 +408,8 @@ class ArsoWeatherEntity(
                 )
             if winds:
                 entry[ATTR_FORECAST_WIND_SPEED] = max(winds)
+            if gusts:
+                entry["native_wind_gust_speed"] = max(gusts)
             if main_forecast.wind_direction_text:
                 entry[ATTR_FORECAST_WIND_BEARING] = main_forecast.wind_direction_text
             if humids:
@@ -405,6 +418,8 @@ class ArsoWeatherEntity(
                 entry[ATTR_FORECAST_PRESSURE] = max(pressures)
             if snows:
                 entry["snow_precipitation"] = sum(snows)
+            if main_forecast.cloud_coverage is not None:
+                entry["cloud_coverage"] = main_forecast.cloud_coverage
 
             ha_forecast.append(entry)
 

@@ -68,7 +68,7 @@ from .arso_weather.models import ObservationDetails
 
 _LOGGER = logging.getLogger(__name__)
 
-# All 36 sensor description keys are FROZEN for backwards compatibility.
+# All 39 observation sensor description keys are FROZEN for backwards compatibility.
 # See docs/backwards_compatibility.md — never change existing key values.
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # --- Fields from BaseTimelineEntry ---
@@ -380,6 +380,39 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:weather-cloudy",
         suggested_display_precision=1,
     ),
+    SensorEntityDescription(
+        key="cloud_cover_text",
+        name="Oblačnost (opis)",
+        icon="mdi:weather-cloudy",
+    ),
+)
+
+# Forecast-based sensors — read from forecast1h[0] or forecast3h[0], NOT observation.
+# Available for ALL stations (official API provides forecasts for all 247 locations).
+FORECAST_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
+    SensorEntityDescription(
+        key="cloud_base_text",
+        name="Višina oblakov",
+        icon="mdi:cloud-outline",
+    ),
+    SensorEntityDescription(
+        key="accumulated_snow_mm",
+        name="Napovedan sneg",
+        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
+        device_class=SensorDeviceClass.PRECIPITATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:weather-snowy-heavy",
+        suggested_display_precision=1,
+    ),
+    SensorEntityDescription(
+        key="accumulated_precipitation_mm",
+        name="Napoveden dež",
+        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
+        device_class=SensorDeviceClass.PRECIPITATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:weather-rainy",
+        suggested_display_precision=1,
+    ),
 )
 
 # --- Text forecast sensors (use TextForecastCoordinator) ---
@@ -591,6 +624,25 @@ async def async_setup_entry(
                 continue
         entities.append(
             ArsoWeatherSensor(coordinator, description, device_info, entry.entry_id)
+        )
+
+    # --- Forecast-based sensors (read from forecast1h/3h, available for all stations) ---
+    forecast_data = None
+    if coordinator.data:
+        for fkey in ("forecast1h", "forecast3h"):
+            flist = coordinator.data.get(fkey)
+            if flist:
+                forecast_data = flist[0]
+                break
+
+    for description in FORECAST_SENSOR_DESCRIPTIONS:
+        if forecast_data is not None:
+            value = getattr(forecast_data, description.key, None)
+            if value is None:
+                _LOGGER.debug("Skipping forecast sensor %s (no initial data)", description.key)
+                continue
+        entities.append(
+            ArsoForecastSensor(coordinator, description, device_info, entry.entry_id)
         )
 
     # --- Text forecast sensors ---
@@ -912,6 +964,73 @@ class ArsoWeatherSensor(
         if not super().available:
             return False
         data = self._current_data
+        if data is None:
+            return False
+        return getattr(data, self.entity_description.key, None) is not None
+
+
+class ArsoForecastSensor(
+    CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity
+):
+    """Sensor that reads from the first forecast entry (forecast1h/3h).
+
+    Used for fields that exist only in forecast data and not in observation,
+    e.g. cloud base height, forecast precipitation, forecast snowfall.
+    Available for ALL stations (official API provides forecasts for all 247 locations).
+    """
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: ArsoDataUpdateCoordinator,
+        description: SensorEntityDescription,
+        device_info: DeviceInfo,
+        config_entry_id: str,
+    ) -> None:
+        """Initialize the forecast sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_device_info = device_info
+        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
+
+    @property
+    def _forecast_data(self):
+        """Get the first forecast entry (prefer 1h, fall back to 3h)."""
+        if not self.coordinator.data:
+            return None
+        for key in ("forecast1h", "forecast3h"):
+            entries = self.coordinator.data.get(key)
+            if entries:
+                return entries[0]
+        return None
+
+    @property
+    def native_value(self) -> Any | None:
+        """Return the state of the sensor from forecast data."""
+        data = self._forecast_data
+        if data is None:
+            return None
+        return getattr(data, self.entity_description.key, None)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return entity specific state attributes."""
+        data = self._forecast_data
+        if data is None:
+            return None
+        valid_utc: datetime | None = getattr(data, "valid_time", None)
+        if valid_utc:
+            local_valid_time = dt_util.as_local(valid_utc)
+            return {"forecast_time": local_valid_time.isoformat()}
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available (value is not None)."""
+        if not super().available:
+            return False
+        data = self._forecast_data
         if data is None:
             return False
         return getattr(data, self.entity_description.key, None) is not None
