@@ -47,6 +47,7 @@ Global modules (`text_forecast`, `bio_weather`, `mountain`, `ski_resorts`, `rada
    - *Official API* (`vreme.arso.gov.si/api/1.0/location/`) — available for all 247 locations; returns: observation (real-time current conditions), forecast1h, forecast3h, forecast6h, forecast24h. The "observation" key provides real-time current weather conditions (phenomenon, cloud cover, temperature, wind).
    - *Primary station API* (`meteo.arso.gov.si/.../observationAms_METEO-{id}_history.json`) — only for primary stations listed in `station_map.py`; provides detailed measurement data (dew point, visibility, ground temps, solar radiation, etc.). **IMPORTANT**: this endpoint returns data in REVERSE chronological order — `days[0]` is the newest day, `timeline[0]` is the newest entry. The parser reads `days[0]["timeline"][0]` to get the latest observation.
    - For current conditions, the integration uses the official API "observation" key first, falls back to forecast3h[0] if observation is unavailable. The "observation" key is available for ALL 247 locations (not just primary stations), updates ~1x/hour with integer-rounded temperatures.
+   - **Observation vs Forecast data integrity** (verified 2026-03-24): All 247 locations always return the `observation` key — the forecast3h[0] fallback in `_build_observation_proxy()` is only a safety net for ARSO outages and does NOT trigger under normal conditions. This means: observation sensors always show real observation data, never silently substituted forecast data. The `ArsoForecastSensor` class (for cloud_base_text, accumulated_snow_mm, accumulated_precipitation_mm) explicitly reads from forecast1h/3h and is clearly labeled as forecast ("Napovedan sneg", etc.) with a `forecast_time` attribute instead of `last_updated`.
    - For primary stations, observationAms detailed measurements are merged into the observation via `merge_observation_data()`. Condition fields (cloud cover, weather phenomenon, icons — defined in `_CONDITION_FIELDS`) are protected from overwrite during merge because observationAms condition data is often stale. The observation_proxy (from official API "observation") provides authoritative condition fields, while observationAms provides authoritative measurement fields.
    - Raises `ArsoApiError` on failure (never silently swallows errors)
    - Extracts location coordinates (lat/lon) from GeoJSON response
@@ -138,6 +139,11 @@ class ArsoRuntimeData:
 
 - **Primary stations** (in `station_map.py`, ~107) — provide full observation data (ObservationDetails) with ~50 fields including ground temps, solar radiation, visibility
 - **Secondary stations** — only forecast-proxy data from official API (temperature, wind, pressure, humidity, conditions). Detailed sensors (dew point, ground temps, etc.) show as unavailable.
+
+### Two types of weather sensors
+
+- **`ArsoWeatherSensor`** (39 keys) — reads from `current[0]` (merged observation data). For primary stations this is observation + observationAms; for secondary it's the official API observation. **Always real observation data** (forecast3h fallback exists but never triggers under normal conditions).
+- **`ArsoForecastSensor`** (3 keys: cloud_base_text, accumulated_snow_mm, accumulated_precipitation_mm) — reads from `forecast1h[0]` or `forecast3h[0]`. Explicitly labeled as forecast data with `forecast_time` attribute. Available for ALL 247 stations. Critical for secondary stations which lack observationAms precipitation data.
 
 ## CRITICAL: Backwards Compatibility
 
