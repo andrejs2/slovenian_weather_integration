@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **Home Assistant custom integration** for Slovenian weather data from ARSO (Agencija Republike Slovenije za okolje). It is distributed via HACS (Home Assistant Community Store). Domain: `slovenian_weather_integration`, display name: "ARSO Weather".
 
-Current version: **2.0.5** (see `manifest.json`). Requires Home Assistant 2025.1.0+ (pydantic v2, `entry.runtime_data`).
+Current version: **2.0.6** (see `manifest.json`). Requires Home Assistant 2025.1.0+ (pydantic v2, `entry.runtime_data`).
 
 ## Validation & CI
 

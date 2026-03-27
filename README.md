@@ -38,7 +38,7 @@ This integration is **not** an official integration of the Slovenian Environment
 
 ## Breaking Changes in v2.0.0
 
-- **Requires Home Assistant 2024.4.0 or newer** (uses `entry.runtime_data`).
+- **Requires Home Assistant 2025.1.0 or newer** (pydantic v2, `entry.runtime_data`).
 - The integration is now fully modular. Only the core **Weather** module is enabled by default.
 - All additional modules (Webcams, Text Forecast, Bio-Weather, Mountain, Ski Resorts, Radar, Agrometeo, Air Quality, UTCI, Weather Warnings, Avalanche) must be explicitly enabled via **Settings > Devices & Services > ARSO Weather > Configure**.
 - Existing installations upgrading from v1.x will continue to work with weather-only functionality. To access new modules, reconfigure the integration entry and select the desired modules.
