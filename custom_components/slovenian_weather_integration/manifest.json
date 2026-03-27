@@ -3,6 +3,7 @@
   "name": "ARSO Weather",
   "codeowners": ["@andrejs2"],
   "config_flow": true,
+  "homeassistant": "2025.1.0",
   "dependencies": [],
   "documentation": "https://github.com/andrejs2/slovenian_weather_integration",
   "iot_class": "cloud_polling",
