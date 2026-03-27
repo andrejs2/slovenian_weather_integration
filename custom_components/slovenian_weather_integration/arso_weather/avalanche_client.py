@@ -125,10 +125,12 @@ def _parse_danger_ratings(ratings: list[dict]) -> dict[str, Any]:
         elev = rating.get("elevation", {})
         if "lowerBound" in elev:
             danger_high = level
-            elevation = int(elev["lowerBound"])
+            bound = elev["lowerBound"]
+            elevation = int(bound) if str(bound).isdigit() else str(bound)
         elif "upperBound" in elev:
             danger_low = level
-            elevation = int(elev["upperBound"])
+            bound = elev["upperBound"]
+            elevation = int(bound) if str(bound).isdigit() else str(bound)
         else:
             danger_high = level
             danger_low = level
