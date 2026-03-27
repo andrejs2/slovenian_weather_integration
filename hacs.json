@@ -1,6 +1,6 @@
 {
   "name": "ARSO Weather",
-  "homeassistant": "2024.4.0",
+  "homeassistant": "2025.1.0",
   "render_readme": true,
   "country": "SI"
 }
