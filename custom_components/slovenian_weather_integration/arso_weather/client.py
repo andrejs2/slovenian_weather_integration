@@ -65,7 +65,7 @@ class ArsoWeather:
         detailed measurements from the observationAms endpoint (dew point,
         visibility, ground temps, solar radiation, etc.).
         """
-        # Fetch official API data (available for all 247 locations)
+        # Fetch official API data (available for all locations)
         official_url = OFFICIAL_ARSO_API_URL.format(
             location_id=self.location_name
         )
