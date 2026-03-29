@@ -388,7 +388,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
 )
 
 # Forecast-based sensors — read from forecast1h[0] or forecast3h[0], NOT observation.
-# Available for ALL stations (official API provides forecasts for all 247 locations).
+# Available for ALL stations (official API provides forecasts for all locations).
 FORECAST_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="cloud_base_text",
@@ -975,7 +975,7 @@ class ArsoForecastSensor(
 
     Used for fields that exist only in forecast data and not in observation,
     e.g. cloud base height, forecast precipitation, forecast snowfall.
-    Available for ALL stations (official API provides forecasts for all 247 locations).
+    Available for ALL stations (official API provides forecasts for all locations).
     """
 
     _attr_has_entity_name = True

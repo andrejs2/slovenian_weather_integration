@@ -21,7 +21,7 @@ from .arso_weather.utci_client import UTCI_STATIONS
 from .arso_weather.mountain_client import MOUNTAIN_REGIONS
 from .arso_weather.ski_client import SKI_RESORTS
 from .arso_weather.avalanche_client import AVALANCHE_REGIONS
-from .arso_weather.station_map import OBSERVATION_STATIONS
+from .arso_weather.station_map import ALL_LOCATIONS, OBSERVATION_STATIONS
 from .arso_weather.webcam_stations import WEBCAM_STATIONS
 from .const import (
     DOMAIN,
@@ -165,8 +165,8 @@ class ArsoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.warning(
                 "ARSO locations API unavailable, using station list fallback"
             )
-            # Fallback to known observation stations when API is down
-            locations = sorted(OBSERVATION_STATIONS.keys())
+            # Fallback to hardcoded location list when API is down
+            locations = sorted(ALL_LOCATIONS)
 
         if user_input is not None and not errors:
             selected = user_input[CONF_LOCATION]
