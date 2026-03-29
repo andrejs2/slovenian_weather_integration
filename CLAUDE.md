@@ -178,3 +178,12 @@ The `/uploads/probase/` paths are subject to rate limiting. Keep coordinator int
 - `docs/` directory is gitignored (local development documentation)
 - `ImageEntity.__init__()` requires `hass` as positional argument — always pass it via `super().__init__(hass)`
 - Minimum HA version is set in `hacs.json` (NOT `manifest.json` — hassfest rejects `homeassistant` key in manifest for custom integrations)
+
+## Session Log
+
+### 2026-03-29 — v2.0.7: Hardcode all ARSO locations as config flow fallback
+- **Trigger:** GitHub discussion #34 — user reported `ARSO locations API unavailable, using station list fallback`
+- **Root cause:** ARSO's `locations.json` had a brief outage on 2026-03-28 (2 occurrences in 3 min). Also discovered that ARSO's Django endpoint `/api/1.0/locations/` (without params) now returns HTTP 500, though the integration doesn't use it.
+- **Finding:** ARSO reduced total location count from 247 to 174. The Angular frontend never called bare `/locations/` — it always uses `?loc=` (autocomplete) or `?lat=&lon=` (geolocation).
+- **Fix:** Added `ALL_LOCATIONS` tuple (174 locations) to `station_map.py`. Config flow fallback now offers complete location list instead of only 105 primary stations. Primary behavior unchanged (API called first, fallback only on failure).
+- **Branch:** `fix/hardcode-all-locations-fallback`, merged to main, released as v2.0.7
