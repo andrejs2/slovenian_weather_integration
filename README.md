@@ -24,7 +24,7 @@
 
 ## Overview
 
-**ARSO Weather** is a comprehensive Home Assistant custom integration for Slovenian weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). Version **2.0.1** introduces a fully modular architecture with **12 independent modules**, covering 247 locations across Slovenia and neighboring regions.
+**ARSO Weather** is a comprehensive Home Assistant custom integration for Slovenian weather data from [ARSO (Agencija Republike Slovenije za okolje)](https://vreme.arso.gov.si/napoved). Version **2.0.1** introduces a fully modular architecture with **12 independent modules**, covering 174 locations across Slovenia and neighboring regions.
 
 Each module can be individually enabled or disabled through the integration's configuration UI. Data is sourced directly from official ARSO APIs, XML feeds, CSV endpoints, and HTML pages, with avalanche data from the European Avalanche Warning Services (EAWS).
 
@@ -89,7 +89,7 @@ ARSO Weather v2.0.1 provides 12 modules:
 
 1. Go to **Settings** > **Devices & Services**.
 2. Click **Add Integration** and search for **ARSO Weather**.
-3. **Step 1 -- Location**: Select a weather station from the list of 247 available locations.
+3. **Step 1 -- Location**: Select a weather station from the list of 174 available locations.
 4. **Step 2 -- Modules**: Choose which modules to enable. The Weather module is always active.
 5. **Conditional steps** (shown only for selected modules):
    - **Webcam locations** -- select stations with webcam images
@@ -464,7 +464,7 @@ There are **two types** of weather stations:
 
 - **Secondary stations (~140)** -- provide forecast-proxy data only (temperature, wind, pressure, humidity, conditions). Detailed sensors will show as unavailable.
 
-The integration covers 247 locations total, including stations in Slovenia, Austria, Italy, Croatia, Hungary, and Bosnia and Herzegovina. You can configure multiple locations as separate integration entries.
+The integration covers 174 locations total, including stations in Slovenia, Austria, Italy, Croatia, Hungary, and Bosnia and Herzegovina. You can configure multiple locations as separate integration entries.
 
 ---
 
