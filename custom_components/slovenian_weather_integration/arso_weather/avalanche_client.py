@@ -96,10 +96,10 @@ DANGER_LABELS: dict[int, str] = {
 # Slovenian labels for avalanche problem types
 PROBLEM_TYPE_LABELS: dict[str, str] = {
     "new_snow": "Nov sneg",
-    "wind_slab": "Klože",
-    "persistent_weak_layers": "Starejše šibke plasti",
+    "wind_slab": "Napihan sneg",
+    "persistent_weak_layers": "Šibke plasti v starem snegu",
     "wet_snow": "Moker sneg",
-    "gliding_snow": "Plazenje snega",
+    "gliding_snow": "Polzeč sneg",
     "cornices": "Opasti",
     "no_distinct_avalanche_problem": "Brez izrazitega problema",
 }

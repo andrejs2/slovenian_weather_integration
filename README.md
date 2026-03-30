@@ -410,10 +410,10 @@ Per-region sensor entities showing:
 | Type | Slovenian | English |
 |------|-----------|---------|
 | new_snow | Nov sneg | New snow |
-| wind_slab | Kloze | Wind slab |
-| persistent_weak_layers | Starejse sibke plasti | Persistent weak layers |
+| wind_slab | Napihan sneg | Wind slab |
+| persistent_weak_layers | Sibke plasti v starem snegu | Persistent weak layers |
 | wet_snow | Moker sneg | Wet snow |
-| gliding_snow | Plazenje snega | Gliding snow |
+| gliding_snow | Polzec sneg | Gliding snow |
 | cornices | Opasti | Cornices |
 
 **Available regions (29):**
