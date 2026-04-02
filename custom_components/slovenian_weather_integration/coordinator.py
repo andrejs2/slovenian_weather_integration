@@ -86,10 +86,11 @@ class ArsoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorDataType]):
     client: ArsoWeather
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         location = entry.data[CONF_LOCATION]
-        session = aiohttp_client.async_get_clientsession(hass)
+        if session is None:
+            session = aiohttp_client.async_get_clientsession(hass)
         self.client = ArsoWeather(location_name=location, session=session)
 
         super().__init__(
@@ -133,7 +134,7 @@ class TextForecastCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -142,7 +143,7 @@ class TextForecastCoordinator(DataUpdateCoordinator[dict]):
             update_interval=FORECAST_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         try:
@@ -162,7 +163,7 @@ class BioWeatherCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -171,7 +172,7 @@ class BioWeatherCoordinator(DataUpdateCoordinator[dict]):
             update_interval=FORECAST_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         try:
@@ -207,7 +208,7 @@ class MountainForecastCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -216,7 +217,7 @@ class MountainForecastCoordinator(DataUpdateCoordinator[dict]):
             update_interval=MOUNTAIN_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         try:
@@ -267,7 +268,7 @@ class SkiResortCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -276,7 +277,7 @@ class SkiResortCoordinator(DataUpdateCoordinator[dict]):
             update_interval=SKI_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         try:
@@ -338,7 +339,7 @@ class WebcamCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -347,7 +348,7 @@ class WebcamCoordinator(DataUpdateCoordinator[dict]):
             update_interval=WEBCAM_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         locations: list[str] = self.config_entry.options.get(
@@ -383,7 +384,7 @@ class AgrometeoCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -392,7 +393,7 @@ class AgrometeoCoordinator(DataUpdateCoordinator[dict]):
             update_interval=AGRO_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         selected: list[str] = self.config_entry.options.get(
@@ -437,7 +438,7 @@ class AirQualityCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -446,7 +447,7 @@ class AirQualityCoordinator(DataUpdateCoordinator[dict]):
             update_interval=AQ_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         selected: list[str] = self.config_entry.options.get(
@@ -496,7 +497,7 @@ class UtciCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -505,7 +506,7 @@ class UtciCoordinator(DataUpdateCoordinator[dict]):
             update_interval=UTCI_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         selected: list[str] = self.config_entry.options.get(
@@ -532,7 +533,7 @@ class AvalancheCoordinator(DataUpdateCoordinator[dict]):
     config_entry: ArsoConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ArsoConfigEntry
+        self, hass: HomeAssistant, entry: ArsoConfigEntry, *, session=None
     ) -> None:
         super().__init__(
             hass,
@@ -541,7 +542,7 @@ class AvalancheCoordinator(DataUpdateCoordinator[dict]):
             update_interval=AVALANCHE_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
 
     async def _async_update_data(self) -> dict:
         selected: list[str] = self.config_entry.options.get(
@@ -594,6 +595,8 @@ class WarningsCoordinator(DataUpdateCoordinator[dict]):
         hass: HomeAssistant,
         entry: ArsoConfigEntry,
         weather_coordinator: ArsoDataUpdateCoordinator,
+        *,
+        session=None,
     ) -> None:
         super().__init__(
             hass,
@@ -602,7 +605,7 @@ class WarningsCoordinator(DataUpdateCoordinator[dict]):
             update_interval=WARNINGS_UPDATE_INTERVAL,
         )
         self.config_entry = entry
-        self._session = aiohttp_client.async_get_clientsession(hass)
+        self._session = session or aiohttp_client.async_get_clientsession(hass)
         self._weather_coordinator = weather_coordinator
         self._region: str | None = None
 

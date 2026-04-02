@@ -6,8 +6,9 @@ import logging
 
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import aiohttp_client, config_validation as cv
 
+from .api_tracker import ApiTracker, TrackedClientSession
 from .const import (
     DOMAIN,
     MODULE_AGROMETEO,
@@ -58,34 +59,39 @@ async def async_setup_entry(
         dict(entry.options),
     )
 
+    # Wrap the shared session to track API request counts per domain
+    tracker = ApiTracker()
+    raw_session = aiohttp_client.async_get_clientsession(hass)
+    session = TrackedClientSession(raw_session, tracker)
+
     # Weather coordinator is always created
-    coordinator = ArsoDataUpdateCoordinator(hass, entry)
+    coordinator = ArsoDataUpdateCoordinator(hass, entry, session=session)
     await coordinator.async_config_entry_first_refresh()
 
     # Optional coordinators based on enabled modules
     text_forecast_coord = None
     if modules.get(MODULE_TEXT_FORECAST):
-        text_forecast_coord = TextForecastCoordinator(hass, entry)
+        text_forecast_coord = TextForecastCoordinator(hass, entry, session=session)
         await text_forecast_coord.async_config_entry_first_refresh()
 
     bio_weather_coord = None
     if modules.get(MODULE_BIO_WEATHER):
-        bio_weather_coord = BioWeatherCoordinator(hass, entry)
+        bio_weather_coord = BioWeatherCoordinator(hass, entry, session=session)
         await bio_weather_coord.async_config_entry_first_refresh()
 
     mountain_coord = None
     if modules.get(MODULE_MOUNTAIN):
-        mountain_coord = MountainForecastCoordinator(hass, entry)
+        mountain_coord = MountainForecastCoordinator(hass, entry, session=session)
         await mountain_coord.async_config_entry_first_refresh()
 
     ski_coord = None
     if modules.get(MODULE_SKI):
-        ski_coord = SkiResortCoordinator(hass, entry)
+        ski_coord = SkiResortCoordinator(hass, entry, session=session)
         await ski_coord.async_config_entry_first_refresh()
 
     agrometeo_coord = None
     if modules.get(MODULE_AGROMETEO):
-        agrometeo_coord = AgrometeoCoordinator(hass, entry)
+        agrometeo_coord = AgrometeoCoordinator(hass, entry, session=session)
         await agrometeo_coord.async_config_entry_first_refresh()
 
     air_quality_coord = None
@@ -95,7 +101,7 @@ async def async_setup_entry(
         entry.options.get("aq_stations", []),
     )
     if modules.get(MODULE_AIR_QUALITY):
-        air_quality_coord = AirQualityCoordinator(hass, entry)
+        air_quality_coord = AirQualityCoordinator(hass, entry, session=session)
         await air_quality_coord.async_config_entry_first_refresh()
         _LOGGER.debug(
             "AQ coordinator created. data keys: %s",
@@ -104,22 +110,22 @@ async def async_setup_entry(
 
     utci_coord = None
     if modules.get(MODULE_UTCI):
-        utci_coord = UtciCoordinator(hass, entry)
+        utci_coord = UtciCoordinator(hass, entry, session=session)
         await utci_coord.async_config_entry_first_refresh()
 
     avalanche_coord = None
     if modules.get(MODULE_AVALANCHE):
-        avalanche_coord = AvalancheCoordinator(hass, entry)
+        avalanche_coord = AvalancheCoordinator(hass, entry, session=session)
         await avalanche_coord.async_config_entry_first_refresh()
 
     warnings_coord = None
     if modules.get(MODULE_WARNINGS):
-        warnings_coord = WarningsCoordinator(hass, entry, coordinator)
+        warnings_coord = WarningsCoordinator(hass, entry, coordinator, session=session)
         await warnings_coord.async_config_entry_first_refresh()
 
     webcam_coord = None
     if modules.get(MODULE_WEBCAMS):
-        webcam_coord = WebcamCoordinator(hass, entry)
+        webcam_coord = WebcamCoordinator(hass, entry, session=session)
         await webcam_coord.async_config_entry_first_refresh()
 
     # Determine which platforms to load
@@ -142,6 +148,7 @@ async def async_setup_entry(
         utci_coordinator=utci_coord,
         warnings_coordinator=warnings_coord,
         avalanche_coordinator=avalanche_coord,
+        api_tracker=tracker,
         loaded_platforms=platform_list,
     )
 

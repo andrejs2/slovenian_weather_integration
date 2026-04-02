@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.const import (
     CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
@@ -891,6 +892,26 @@ async def async_setup_entry(
                     location_name,
                 )
             )
+
+    # --- API diagnostic sensors (always created) ---
+    tracker = entry.runtime_data.api_tracker
+    if tracker is not None:
+        entities.append(
+            ArsoApiDiagnosticSensor(
+                coordinator, device_info, entry.entry_id,
+                key="api_requests_per_hour",
+                name="API zahtevkov na uro",
+                icon="mdi:swap-vertical",
+            )
+        )
+        entities.append(
+            ArsoApiDiagnosticSensor(
+                coordinator, device_info, entry.entry_id,
+                key="api_errors_per_hour",
+                name="API napak na uro",
+                icon="mdi:alert-circle-outline",
+            )
+        )
 
     if entities:
         _LOGGER.info(
@@ -2158,3 +2179,67 @@ class ArsoAvalancheSensor(
         if not super().available:
             return False
         return self._region_data() is not None
+
+
+class ArsoApiDiagnosticSensor(
+    CoordinatorEntity[ArsoDataUpdateCoordinator], SensorEntity
+):
+    """Diagnostic sensor exposing API request/error counts.
+
+    Tied to the main weather coordinator so it refreshes every 15 min.
+    Reads live data from the shared ApiTracker in runtime_data.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: ArsoDataUpdateCoordinator,
+        device_info: DeviceInfo,
+        config_entry_id: str,
+        *,
+        key: str,
+        name: str,
+        icon: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_device_info = device_info
+        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{key}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._key = key
+
+    @property
+    def _tracker(self):
+        """Get the API tracker from runtime data."""
+        return self.coordinator.config_entry.runtime_data.api_tracker
+
+    @property
+    def native_value(self) -> int | None:
+        tracker = self._tracker
+        if tracker is None:
+            return None
+        if self._key == "api_requests_per_hour":
+            return tracker.requests_per_hour
+        return tracker.errors_per_hour
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        tracker = self._tracker
+        if tracker is None:
+            return None
+        if self._key == "api_requests_per_hour":
+            return {
+                "total_requests": tracker.total_requests,
+                "total_errors": tracker.total_errors,
+                "errors_per_hour": tracker.errors_per_hour,
+                "per_domain": tracker.hourly_by_domain,
+                "total_per_domain": tracker.requests_by_domain,
+                "uptime_hours": tracker.uptime_hours,
+            }
+        return {
+            "total_errors": tracker.total_errors,
+            "per_domain": tracker.errors_by_domain,
+        }

@@ -11,6 +11,7 @@ from homeassistant.const import Platform
 if TYPE_CHECKING:
     from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+    from .api_tracker import ApiTracker
     from .coordinator import ArsoDataUpdateCoordinator
 
 DOMAIN = "slovenian_weather_integration"
@@ -98,6 +99,7 @@ class ArsoRuntimeData:
     utci_coordinator: DataUpdateCoordinator | None = None
     warnings_coordinator: DataUpdateCoordinator | None = None
     avalanche_coordinator: DataUpdateCoordinator | None = None
+    api_tracker: ApiTracker | None = None
     loaded_platforms: list[Platform] = field(default_factory=list)
 
 
