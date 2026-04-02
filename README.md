@@ -51,7 +51,7 @@ ARSO Weather v2.0.1 provides 12 modules:
 
 | # | Module | Description |
 |---|--------|-------------|
-| 1 | **Weather** (core) | Current conditions + hourly/daily/twice-daily forecasts, up to 42 sensor entities per location |
+| 1 | **Weather** (core) | Current conditions + hourly/daily/twice-daily forecasts, up to 44 sensor entities per location (incl. 2 API diagnostic sensors) |
 | 2 | **Webcams** | Live webcam images from 51 ARSO stations, up to 8 compass directions per location |
 | 3 | **Text Forecast** | Full national text forecast, short summary, outlook, and weather map description |
 | 4 | **Bio-Weather** | Bio-weather index, UV index, and pollen information |
@@ -111,7 +111,7 @@ You can reconfigure modules at any time via **Configure** on the integration ent
 
 ### 1. Weather (Core Module)
 
-Always enabled. Provides a `weather` entity and up to up to 42 sensor entities per location.
+Always enabled. Provides a `weather` entity and up to 44 sensor entities per location (including 2 API diagnostic sensors).
 
 **Weather entity properties:**
 - Temperature, humidity, pressure
@@ -180,6 +180,15 @@ Always enabled. Provides a `weather` entity and up to up to 42 sensor entities p
 | Napoveden dež | `accumulated_precipitation_mm` | mm | All stations (forecast) |
 
 **Note on entity IDs:** HA auto-generates entity IDs from the device name and sensor name. For example, with device "ARSO Weather Ljubljana" and sensor "Temperatura", the entity ID becomes `sensor.arso_weather_ljubljana_temperatura`. Sensor names are in Slovenian, so entity IDs contain Slovenian words.
+
+**API diagnostic sensor entities (2 per location, always created):**
+
+| Sensor Name (SI) | Key | Description |
+|------------------|-----|-------------|
+| API zahtevkov na uro | `api_requests_per_hour` | Rolling hourly HTTP request count with per-domain breakdown |
+| API napak na uro | `api_errors_per_hour` | Rolling hourly error count with per-domain breakdown |
+
+These diagnostic sensors (entity category: `diagnostic`) provide transparency into the integration's API traffic. Attributes include `total_requests`, `total_errors`, `per_domain` breakdown, and `uptime_hours`. Useful for monitoring rate limiting risk and debugging connectivity issues.
 
 Observation sensors only appear when the station provides data for the field. Primary stations provide all ~39 observation sensors; secondary stations provide ~9. Forecast-based sensors appear when the forecast contains data (snow may be absent in summer).
 
