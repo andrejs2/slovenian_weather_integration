@@ -177,7 +177,7 @@ Always enabled. Provides a `weather` entity and up to 44 sensor entities per loc
 |------------------|-----|------|-------------|
 | Višina oblakov | `cloud_base_text` | -- | All stations (forecast) |
 | Napovedan sneg | `accumulated_snow_mm` | mm | All stations (forecast) |
-| Napoveden dež | `accumulated_precipitation_mm` | mm | All stations (forecast) |
+| Napovedan dež | `accumulated_precipitation_mm` | mm | All stations (forecast) |
 
 **Note on entity IDs:** HA auto-generates entity IDs from the device name and sensor name. For example, with device "ARSO Weather Ljubljana" and sensor "Temperatura", the entity ID becomes `sensor.arso_weather_ljubljana_temperatura`. Sensor names are in Slovenian, so entity IDs contain Slovenian words.
 

@@ -407,7 +407,7 @@ FORECAST_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     ),
     SensorEntityDescription(
         key="accumulated_precipitation_mm",
-        name="Napoveden dež",
+        name="Napovedan dež",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
         state_class=SensorStateClass.MEASUREMENT,
