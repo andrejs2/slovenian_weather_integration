@@ -64,6 +64,11 @@ ARSO Weather v2.0.1 provides 12 modules:
 | 11 | **Weather Warnings** | 10 warning types across 5 regions, 4 severity levels, binary sensors for automations |
 | 12 | **Avalanche** | Avalanche danger bulletin (EAWS) for 29 alpine regions across Slovenia, Carinthia (AT), and Styria (AT) |
 
+> 📖 **Sensor reference:** A detailed, per-sensor description — explaining for each sensor whether it
+> is **measured data**, a **forecast**, or a **derived value**, plus its **measurement interval** — is
+> available in **[SENSORS.md](SENSORS.md)** (written in Slovenian). Start there if you are unsure which
+> sensor to use.
+
 ---
 
 ## Installation
@@ -127,7 +132,11 @@ Always enabled. Provides a `weather` entity and up to 44 sensor entities per loc
 - **Daily** -- up to 10 days, with min/max temperature, 24h precipitation, wind gusts, cloud coverage
 - **Twice-daily** -- morning and evening aggregation (includes wind gusts, snowfall, cloud coverage)
 
-**Observation sensor entities (up to 39 per location):**
+> **Looking for a detailed, per-sensor explanation** (what each sensor measures, whether it
+> is **measured data or a forecast**, and the **measurement interval**)? See the dedicated
+> **[Sensor documentation (SENSORS.md)](SENSORS.md)** — written in Slovenian for end users.
+
+**Observation sensor entities (up to 39 per location):** — measured data (🟢), except `cloud_coverage` which is derived (🟡).
 
 | Sensor Name (SI) | Key | Unit | Availability |
 |------------------|-----|------|-------------|
