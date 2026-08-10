@@ -14,8 +14,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
     CONF_LOCATION,
     DEGREE,
     PERCENTAGE,
@@ -35,6 +33,21 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 import homeassistant.util.dt as dt_util
+
+# Air quality unit constants. `UnitOfDensity` only exists on HA >= 2026.7, where the
+# CONCENTRATION_* constants became deprecated (removal announced for HA 2027.8).
+# The deprecated import is reached only on older cores, which emit no warning for it.
+# Both branches yield the same unit strings, so entity units never change.
+try:
+    from homeassistant.const import UnitOfDensity
+
+    MICROGRAMS_PER_CUBIC_METER = UnitOfDensity.MICROGRAMS_PER_CUBIC_METER
+    MILLIGRAMS_PER_CUBIC_METER = UnitOfDensity.MILLIGRAMS_PER_CUBIC_METER
+except ImportError:  # HA < 2026.7
+    from homeassistant.const import (
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER as MICROGRAMS_PER_CUBIC_METER,
+        CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER as MILLIGRAMS_PER_CUBIC_METER,
+    )
 
 from .arso_weather.agrometeo_client import AGRO_STATIONS
 from .arso_weather.air_quality_client import AQ_STATIONS, EAQI_LABELS, compute_eaqi
@@ -543,7 +556,7 @@ AQ_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         key="pm10",
         name="PM10",
         device_class=SensorDeviceClass.PM10,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
     ),
@@ -551,14 +564,14 @@ AQ_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         key="pm2.5",
         name="PM2.5",
         device_class=SensorDeviceClass.PM25,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
     ),
     SensorEntityDescription(
         key="o3",
         name="Ozon (O3)",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:molecule",
         suggested_display_precision=1,
@@ -566,7 +579,7 @@ AQ_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="no2",
         name="Dušikov dioksid (NO2)",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:molecule",
         suggested_display_precision=1,
@@ -574,7 +587,7 @@ AQ_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="so2",
         name="Žveplov dioksid (SO2)",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:molecule",
         suggested_display_precision=1,
@@ -582,7 +595,7 @@ AQ_SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="co",
         name="Ogljikov monoksid (CO)",
-        native_unit_of_measurement=CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=MILLIGRAMS_PER_CUBIC_METER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:molecule-co",
         suggested_display_precision=2,
