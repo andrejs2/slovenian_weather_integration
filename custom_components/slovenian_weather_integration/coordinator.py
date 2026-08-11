@@ -560,7 +560,7 @@ class AvalancheCoordinator(DataUpdateCoordinator[dict]):
 
 
 class WarningsCoordinator(DataUpdateCoordinator[dict]):
-    """Manage fetching ARSO weather warnings (ATOM feed + CAP XML).
+    """Manage fetching ARSO weather warnings (combined CAP XML).
 
     Auto-detects the warning region from the weather coordinator's
     location coordinates.
@@ -571,7 +571,7 @@ class WarningsCoordinator(DataUpdateCoordinator[dict]):
             "region": "SLOVENIA_MIDDLE",
             "region_name": "Osrednja Slovenija",
             "updated": "2026-03-12T09:09:44+01:00",
-            "warnings": [
+            "warnings": [  # currently valid periods, level >= 2
                 {
                     "type": "wind",
                     "type_name": "Veter",
@@ -585,6 +585,7 @@ class WarningsCoordinator(DataUpdateCoordinator[dict]):
                     "expires": "...",
                 },
             ],
+            "upcoming_warnings": [...],  # future periods, level >= 2
         }
     """
 

@@ -1,14 +1,20 @@
 """Client for fetching weather warnings from ARSO.
 
-Data source: meteo.arso.gov.si — ATOM feed + CAP XML per warning type.
+Data source: meteo.arso.gov.si — combined CAP XML per region.
 5 warning regions, 10 warning types, 4 severity levels.
+
+The combined CAP file (``warning_{region}_latest_CAP.xml``) contains one
+``<info>`` block per warning type AND per validity period, covering ~5 days
+ahead. The currently valid level for a type is therefore NOT the first block
+(nor the ATOM feed title, which does not reflect the currently valid period)
+but the block whose onset/expires interval contains the current time.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -17,13 +23,9 @@ from .client import ArsoApiError
 
 _LOGGER = logging.getLogger(__name__)
 
-ATOM_URL = (
-    "https://meteo.arso.gov.si/uploads/probase/www/warning/text/sl/"
-    "warning_{region}_latest.atom"
-)
 CAP_URL = (
     "https://meteo.arso.gov.si/uploads/probase/www/warning/text/sl/"
-    "warning_{type}_{region}_latest_CAP.xml"
+    "warning_{region}_latest_CAP.xml"
 )
 
 # Warning regions
@@ -57,9 +59,34 @@ SEVERITY_LEVELS: dict[int, dict[str, str]] = {
     4: {"color": "rdeča", "text": "Zelo velika ogroženost", "en": "Extreme"},
 }
 
-# XML namespaces
-_NS_ATOM = {"atom": "http://www.w3.org/2005/Atom"}
-_NS_CAP = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
+# CAP awareness_type parameter ("5; high-temperature") -> warning type code.
+# Numeric codes follow MeteoAlarm conventions; the text token is a fallback.
+_AWARENESS_TYPE_CODES: dict[str, str] = {
+    "1": "wind",
+    "2": "snow",
+    "3": "TS",
+    "5": "Tx",
+    "6": "Tn",
+    "7": "coastal",
+    "8": "forestFire",
+    "9": "avalanche",
+    "10": "rain",
+    "14": "ice",
+}
+_AWARENESS_TYPE_NAMES: dict[str, str] = {
+    "wind": "wind",
+    "snow-ice": "snow",
+    "thunderstorm": "TS",
+    "high-temperature": "Tx",
+    "low-temperature": "Tn",
+    "coastalevent": "coastal",
+    "forest-fire": "forestFire",
+    "avalanches": "avalanche",
+    "rain": "rain",
+    "ice": "ice",
+}
+
+_CAP = "{urn:oasis:names:tc:emergency:cap:1.2}"
 
 
 def region_from_coordinates(lat: float, lon: float) -> str:
@@ -95,146 +122,148 @@ def region_from_coordinates(lat: float, lon: float) -> str:
     return "SLOVENIA_MIDDLE"
 
 
-def _parse_level_from_title(title: str) -> int:
-    """Extract warning level (1-4) from ATOM entry title.
-
-    Title format: "Veter - neznatna ogroženost (Stopnja 1/4) - Slovenija / osrednja"
-    """
-    match = re.search(r"Stopnja\s+(\d)/4", title)
-    if match:
-        return int(match.group(1))
-    return 1
-
-
-def _parse_type_from_url(url: str) -> str | None:
-    """Extract warning type code from CAP URL.
-
-    URL: .../warning_wind_SLOVENIA_MIDDLE_latest_CAP.xml
-    """
-    match = re.search(r"warning_(\w+)_SLOVENIA", url)
-    if match:
-        return match.group(1)
-    return None
-
-
-def _parse_atom_feed(text: str) -> list[dict[str, Any]]:
-    """Parse ATOM feed into a list of warning summaries."""
+def _parse_dt(value: str | None) -> datetime | None:
+    """Parse a CAP timestamp ("2026-08-11T10:00:00+02:00") to aware datetime."""
+    if not value:
+        return None
     try:
-        root = ET.fromstring(text)
-    except ET.ParseError as err:
-        raise ArsoApiError(f"Failed to parse warnings ATOM: {err}") from err
-
-    warnings: list[dict[str, Any]] = []
-    for entry in root.findall("atom:entry", _NS_ATOM):
-        title_el = entry.find("atom:title", _NS_ATOM)
-        link_el = entry.find("atom:link", _NS_ATOM)
-        updated_el = entry.find("atom:updated", _NS_ATOM)
-
-        title = title_el.text if title_el is not None else ""
-        url = link_el.get("href", "") if link_el is not None else ""
-        updated = updated_el.text if updated_el is not None else None
-
-        warning_type = _parse_type_from_url(url)
-        level = _parse_level_from_title(title)
-
-        if warning_type:
-            warnings.append({
-                "type": warning_type,
-                "type_name": WARNING_TYPES.get(warning_type, warning_type),
-                "level": level,
-                "level_color": SEVERITY_LEVELS.get(level, {}).get("color", ""),
-                "level_text": SEVERITY_LEVELS.get(level, {}).get("text", ""),
-                "title": title,
-                "cap_url": url,
-                "updated": updated,
-            })
-
-    return warnings
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        # ARSO timestamps carry an offset; treat a missing one as UTC.
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
-def _parse_cap_xml(text: str) -> dict[str, Any]:
-    """Parse CAP XML for detailed warning info (Slovenian language)."""
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError as err:
-        raise ArsoApiError(f"Failed to parse CAP XML: {err}") from err
+def _parse_info_block(info: ET.Element) -> dict[str, Any] | None:
+    """Parse one Slovenian CAP <info> block into a warning period dict."""
+    lang = info.findtext(_CAP + "language")
+    if lang and not lang.startswith("sl"):
+        return None
 
-    result: dict[str, Any] = {
-        "sent": root.findtext("{urn:oasis:names:tc:emergency:cap:1.2}sent"),
+    warning_type: str | None = None
+    level: int | None = None
+    for param in info.findall(_CAP + "parameter"):
+        name = param.findtext(_CAP + "valueName")
+        value = param.findtext(_CAP + "value") or ""
+        parts = [p.strip() for p in value.split(";")]
+        if name == "awareness_type" and parts:
+            warning_type = _AWARENESS_TYPE_CODES.get(parts[0])
+            if warning_type is None and len(parts) > 1:
+                warning_type = _AWARENESS_TYPE_NAMES.get(parts[1].lower())
+        elif name == "awareness_level" and parts:
+            try:
+                level = int(parts[0])
+            except ValueError:
+                level = None
+
+    if warning_type is None or level is None:
+        _LOGGER.debug(
+            "Skipping CAP info block without awareness type/level: %s",
+            info.findtext(_CAP + "event"),
+        )
+        return None
+
+    onset = info.findtext(_CAP + "onset")
+    expires = info.findtext(_CAP + "expires")
+    return {
+        "type": warning_type,
+        "type_name": WARNING_TYPES.get(warning_type, warning_type),
+        "level": level,
+        "level_color": SEVERITY_LEVELS.get(level, {}).get("color", ""),
+        "level_text": SEVERITY_LEVELS.get(level, {}).get("text", ""),
+        "title": info.findtext(_CAP + "headline"),
+        "description": (info.findtext(_CAP + "description") or "").strip(),
+        "instruction": (info.findtext(_CAP + "instruction") or "").strip(),
+        "onset": onset,
+        "expires": expires,
+        "onset_dt": _parse_dt(onset),
+        "expires_dt": _parse_dt(expires),
+        "severity": info.findtext(_CAP + "severity"),
+        "urgency": info.findtext(_CAP + "urgency"),
+        "certainty": info.findtext(_CAP + "certainty"),
     }
 
-    # Find Slovenian info block
-    for info in root.findall("{urn:oasis:names:tc:emergency:cap:1.2}info"):
-        lang = info.findtext("{urn:oasis:names:tc:emergency:cap:1.2}language")
-        if lang and lang != "sl":
-            continue
 
-        result["event"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}event"
-        )
-        result["headline"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}headline"
-        )
-        result["description"] = (
-            info.findtext(
-                "{urn:oasis:names:tc:emergency:cap:1.2}description"
-            )
-            or ""
-        ).strip()
-        result["instruction"] = (
-            info.findtext(
-                "{urn:oasis:names:tc:emergency:cap:1.2}instruction"
-            )
-            or ""
-        ).strip()
-        result["severity"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}severity"
-        )
-        result["urgency"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}urgency"
-        )
-        result["certainty"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}certainty"
-        )
-        result["onset"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}onset"
-        )
-        result["expires"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}expires"
-        )
-        result["effective"] = info.findtext(
-            "{urn:oasis:names:tc:emergency:cap:1.2}effective"
-        )
+def _is_current(period: dict[str, Any], now: datetime) -> bool:
+    """Check whether a warning period is valid at ``now``.
 
-        # Extract parameters
-        for param in info.findall(
-            "{urn:oasis:names:tc:emergency:cap:1.2}parameter"
+    A missing onset/expires bound is treated as open-ended.
+    """
+    onset = period["onset_dt"]
+    expires = period["expires_dt"]
+    if onset is not None and now < onset:
+        return False
+    if expires is not None and now > expires:
+        return False
+    return True
+
+
+def parse_warnings_cap(
+    text: str, now: datetime | None = None
+) -> dict[str, Any]:
+    """Parse a combined CAP XML into current + upcoming warnings.
+
+    Returns ``{"updated": ..., "warnings": [...], "upcoming_warnings": [...]}``
+    where ``warnings`` holds the currently valid period per type (level >= 2
+    only) and ``upcoming_warnings`` the future periods with level >= 2.
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError as err:
+        raise ArsoApiError(f"Failed to parse warnings CAP XML: {err}") from err
+
+    periods = [
+        parsed
+        for info in root.findall(_CAP + "info")
+        if (parsed := _parse_info_block(info)) is not None
+    ]
+    if not periods:
+        raise ArsoApiError("Warnings CAP XML contains no usable info blocks")
+
+    sent = root.findtext(_CAP + "sent")
+
+    current: dict[str, dict[str, Any]] = {}
+    upcoming: list[dict[str, Any]] = []
+    for period in periods:
+        period["updated"] = sent
+        if _is_current(period, now):
+            # Keep the most severe period if several overlap "now".
+            existing = current.get(period["type"])
+            if existing is None or period["level"] > existing["level"]:
+                current[period["type"]] = period
+        elif (
+            period["level"] >= 2
+            and period["onset_dt"] is not None
+            and period["onset_dt"] > now
         ):
-            name = param.findtext(
-                "{urn:oasis:names:tc:emergency:cap:1.2}valueName"
-            )
-            value = param.findtext(
-                "{urn:oasis:names:tc:emergency:cap:1.2}value"
-            )
-            if name == "awareness_level" and value:
-                # "1; green; Minor" → extract level number
-                parts = value.split(";")
-                if parts:
-                    try:
-                        result["awareness_level"] = int(parts[0].strip())
-                    except ValueError:
-                        pass
+            upcoming.append(period)
 
-        break  # Only need Slovenian info
+    warnings = [w for w in current.values() if w["level"] >= 2]
+    warnings.sort(key=lambda w: w["level"], reverse=True)
+    upcoming.sort(key=lambda w: w["onset_dt"])
 
-    return result
+    # Internal datetime helpers must not leak into coordinator data.
+    for period in periods:
+        period.pop("onset_dt", None)
+        period.pop("expires_dt", None)
+
+    return {
+        "updated": sent,
+        "warnings": warnings,
+        "upcoming_warnings": upcoming,
+    }
 
 
 async def fetch_warnings(
     session: aiohttp.ClientSession,
     region: str,
 ) -> dict[str, Any]:
-    """Fetch all weather warnings for a region.
+    """Fetch all weather warnings for a region (single CAP request).
 
     Args:
         session: aiohttp client session
@@ -245,80 +274,38 @@ async def fetch_warnings(
         {
             "region": "SLOVENIA_MIDDLE",
             "region_name": "Osrednja Slovenija",
-            "updated": "2026-03-12T09:09:44+01:00",
+            "updated": "2026-08-11T15:25:00+02:00",
             "warnings": [
                 {
-                    "type": "wind",
-                    "type_name": "Veter",
+                    "type": "Tx",
+                    "type_name": "Visoka temperatura",
                     "level": 3,
                     "level_color": "oranžna",
                     "level_text": "Velika ogroženost",
-                    "title": "Veter - velika ogroženost...",
-                    "description": "Pričakujemo...",
-                    "instruction": "Priporočamo...",
-                    "onset": "...",
-                    "expires": "...",
+                    "title": "Visoka temperatura - velika ogroženost...",
+                    "description": "...",
+                    "instruction": "...",
+                    "onset": "2026-08-11T10:00:00+02:00",
+                    "expires": "2026-08-11T19:59:00+02:00",
                     "updated": "...",
                 },
             ],
+            "upcoming_warnings": [...],  # same shape, future periods
         }
     """
-    # Step 1: Fetch ATOM feed (1 request for all types)
-    atom_url = ATOM_URL.format(region=region)
+    cap_url = CAP_URL.format(region=region)
     try:
-        async with session.get(atom_url) as response:
+        async with session.get(cap_url) as response:
             response.raise_for_status()
-            atom_text = await response.text()
+            cap_text = await response.text()
     except aiohttp.ClientResponseError as err:
         raise ArsoApiError(
-            f"HTTP {err.status} fetching warnings ATOM: {err.message}"
+            f"HTTP {err.status} fetching warnings CAP: {err.message}"
         ) from err
     except aiohttp.ClientError as err:
         raise ArsoApiError(f"Failed to fetch warnings: {err}") from err
 
-    # Parse ATOM
-    try:
-        atom_root = ET.fromstring(atom_text)
-    except ET.ParseError as err:
-        raise ArsoApiError(f"Failed to parse warnings ATOM: {err}") from err
-
-    feed_updated = atom_root.findtext("{http://www.w3.org/2005/Atom}updated")
-    atom_warnings = _parse_atom_feed(atom_text)
-
-    # Step 2: For warnings with level >= 2, fetch CAP XML for details
-    result_warnings: list[dict[str, Any]] = []
-    for warning in atom_warnings:
-        if warning["level"] >= 2:
-            # Fetch detailed CAP XML
-            cap_url = warning.get("cap_url", "")
-            if cap_url:
-                try:
-                    async with session.get(cap_url) as resp:
-                        resp.raise_for_status()
-                        cap_text = await resp.text()
-                    cap_data = _parse_cap_xml(cap_text)
-                    warning.update({
-                        "description": cap_data.get("description", ""),
-                        "instruction": cap_data.get("instruction", ""),
-                        "onset": cap_data.get("onset"),
-                        "expires": cap_data.get("expires"),
-                        "severity": cap_data.get("severity"),
-                        "urgency": cap_data.get("urgency"),
-                        "certainty": cap_data.get("certainty"),
-                    })
-                except Exception:
-                    _LOGGER.debug(
-                        "Failed to fetch CAP for %s", warning["type"],
-                        exc_info=True,
-                    )
-            result_warnings.append(warning)
-
-    # Sort by level descending (most severe first)
-    result_warnings.sort(key=lambda w: w["level"], reverse=True)
-
-    return {
-        "region": region,
-        "region_name": WARNING_REGIONS.get(region, region),
-        "updated": feed_updated,
-        "warnings": result_warnings,
-    }
+    result = parse_warnings_cap(cap_text)
+    result["region"] = region
+    result["region_name"] = WARNING_REGIONS.get(region, region)
+    return result
