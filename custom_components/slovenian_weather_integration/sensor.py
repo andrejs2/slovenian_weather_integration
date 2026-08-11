@@ -1992,9 +1992,10 @@ class ArsoWarningsOverviewSensor(
 ):
     """Overview sensor for weather warnings.
 
-    State: "Ni opozoril" when no active warnings (level >= 2),
+    State: "Ni opozoril" when no currently valid warnings (level >= 2),
            or summary like "Veter (oranžna), Dež (rumena)".
-    Attributes: region, full warning details, updated timestamp.
+    Attributes: region, full details of current warnings, upcoming
+    (future-period) warnings, updated timestamp.
     """
 
     _attr_has_entity_name = True
@@ -2065,6 +2066,20 @@ class ArsoWarningsOverviewSensor(
                     "posodobljeno": w.get("updated"),
                 }
                 for w in active
+            ]
+        upcoming = data.get("upcoming_warnings") or []
+        if upcoming:
+            attrs["napovedana_opozorila"] = [
+                {
+                    "tip": w.get("type"),
+                    "tip_ime": w.get("type_name"),
+                    "stopnja": w.get("level"),
+                    "barva": w.get("level_color"),
+                    "opis_stopnje": w.get("level_text"),
+                    "veljavnost_od": w.get("onset"),
+                    "veljavnost_do": w.get("expires"),
+                }
+                for w in upcoming
             ]
         return attrs
 

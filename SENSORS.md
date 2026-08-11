@@ -167,7 +167,7 @@ glavnem [README](README.md); spodaj je tip podatka.
 | Agrometeo               | Temperatura tal (5/10/30 cm), min temp., evapotranspiracija, vodna bilanca   | 🟢 Meritev + 🔵 napoved |
 | Kakovost zraka          | EAQI + PM10, PM2.5, O₃, NO₂, SO₂, CO                                         | 🟢 Meritev              |
 | UTCI (toplotni občutek) | Univerzalni toplotni indeks po urah                                          | 🔵 Napoved              |
-| Vremenska opozorila     | Pregled aktivnih opozoril + binarni senzorji po tipu                         | 🔵 Napoved/opozorilo    |
+| Vremenska opozorila     | Trenutno veljavna opozorila (atribut `napovedana_opozorila` za prihodnja) + binarni senzorji po tipu | 🔵 Napoved/opozorilo    |
 | Snežni plazovi          | EAWS bilten po regijah (stopnja nevarnosti ...)                              | 🔵 Napoved/opozorilo    |
 
 ***
