@@ -359,7 +359,7 @@ Bilje, Bovec, Celje, Crnomelj, Kocevje, Kranj, Ljubljana, Maribor, Murska Sobota
 Per-location warning module. The region is auto-detected from station coordinates across 5 ARSO warning regions. Updated every 5 minutes.
 
 **Entities per location:**
-- 1 **overview sensor** -- state shows count of active warnings, attributes include region, highest severity, and list of warning types
+- 1 **overview sensor** -- state summarizes the *currently valid* warnings (level >= 2), attributes include region, full warning details and the `napovedana_opozorila` attribute with upcoming warning periods (type, level, validity from/to)
 - 1 **overview binary sensor** -- ON when any warning has level >= 2 (Moderate or higher)
 - 10 **per-type binary sensors** (disabled by default) -- one for each warning type
 
@@ -387,7 +387,7 @@ Per-location warning module. The region is auto-detected from station coordinate
 | 3 | Oranzna (Orange) | Velika ogrozenost | Severe |
 | 4 | Rdeca (Red) | Zelo velika ogrozenost | Extreme |
 
-Only warnings with level >= 2 include detailed CAP XML data (description, instructions, onset/expiry times).
+Warnings are read from ARSO's combined CAP XML file, which contains all validity periods ~5 days ahead. The sensors show the level of the period valid *right now* (time-filtered by onset/expiry), so level transitions during the day take effect within one 5-minute update cycle. Future periods with level >= 2 are exposed separately in the `napovedana_opozorila` attribute.
 
 **Warning regions (5):**
 
