@@ -153,6 +153,7 @@ class ArsoWeather:
                 timeline: list[dict] = []
                 for day in data[key]["features"][0]["properties"]["days"]:
                     timeline.extend(day["timeline"])
+                timeline.sort(key=lambda item: item["valid"])
                 result[key] = timeline
                 _LOGGER.debug(
                     "Extracted %d entries for %s", len(timeline), key
